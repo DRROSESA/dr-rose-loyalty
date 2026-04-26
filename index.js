@@ -128,9 +128,14 @@ async function makePass(customer) {
     }
   );
 
-  pass.setBarcodeWithMessage(String(customer.customer_number));
+  pass.setBarcodes({
+    message: String(customer.customer_number),
+    format: 'PKBarcodeFormatQR',
+    messageEncoding: 'iso-8859-1',
+    altText: String(customer.customer_number),
+  });
 
-  pass.setSecondaryFields([
+  pass.secondaryFields.push(
     {
       key: 'visits',
       label: 'تقدمك',
@@ -142,30 +147,23 @@ async function makePass(customer) {
       label: 'الاسم',
       value: customer.name,
       textAlignment: 'PKTextAlignmentLeft',
-    },
-  ]);
+    }
+  );
 
-  pass.setAuxiliaryFields([
-    {
-      key: 'dateField',
-      label: dateLabel,
-      value: dateValue,
-      textAlignment: 'PKTextAlignmentCenter',
-    },
-  ]);
+  pass.auxiliaryFields.push({
+    key: 'dateField',
+    label: dateLabel,
+    value: dateValue,
+    textAlignment: 'PKTextAlignmentCenter',
+  });
 
-  pass.setBackFields([
+  pass.backFields.push(
     { key: 'freeEarned',  label: 'مكافآت مكتسبة',    value: String(customer.free_visits) },
     { key: 'cycleStart',  label: 'بداية الدورة',       value: customer.cycle_start ? new Date(customer.cycle_start).toLocaleDateString('ar-SA') : '' },
     { key: 'lastVisit',   label: 'آخر زيارة',          value: customer.last_visit ? new Date(customer.last_visit).toLocaleDateString('ar-SA') : '' },
     { key: 'updated',     label: 'آخر تحديث',          value: new Date().toLocaleString('ar-SA') },
-    {
-      key: 'notification',
-      label: 'رسالة',
-      value: notifValue,
-      changeMessage: '%@',
-    },
-  ]);
+    { key: 'notification', label: 'رسالة', value: notifValue, changeMessage: '%@' }
+  );
 
   // 6. صورة الشريط
   const stripFiles = getStripFiles(customer.visits % 5);
@@ -186,24 +184,27 @@ async function makeRevokedPass(customer) {
     { serialNumber: String(customer.customer_number) }
   );
 
-  pass.setBarcodeWithMessage('تواصل مع المتجر');
+  pass.setBarcodes({
+    message: 'تواصل مع المتجر',
+    format: 'PKBarcodeFormatQR',
+    messageEncoding: 'utf-8',
+  });
 
-  pass.setSecondaryFields([
-    { key: 'status',      label: 'الحالة', value: '🚫 موقوفة', textAlignment: 'PKTextAlignmentRight' },
-    { key: 'customerName', label: 'الاسم', value: customer.name, textAlignment: 'PKTextAlignmentLeft' },
-  ]);
+  pass.secondaryFields.push(
+    { key: 'status',       label: 'الحالة', value: '🚫 موقوفة', textAlignment: 'PKTextAlignmentRight' },
+    { key: 'customerName', label: 'الاسم',  value: customer.name, textAlignment: 'PKTextAlignmentLeft' }
+  );
 
-  pass.setAuxiliaryFields([
-    { key: 'reason', label: 'السبب', value: customer.revoke_reason || '', textAlignment: 'PKTextAlignmentCenter' },
-  ]);
+  pass.auxiliaryFields.push(
+    { key: 'reason', label: 'السبب', value: customer.revoke_reason || '', textAlignment: 'PKTextAlignmentCenter' }
+  );
 
-  pass.setBackFields([
-    { key: 'freeEarned',  label: 'مكافآت مكتسبة', value: String(customer.free_visits) },
-    { key: 'lastVisit',   label: 'آخر زيارة',       value: customer.last_visit ? new Date(customer.last_visit).toLocaleDateString('ar-SA') : '' },
-    { key: 'updated',     label: 'آخر تحديث',       value: new Date().toLocaleString('ar-SA') },
-    // نحتفظ بنفس قيمة last_notification_sent لمنع changeMessage
-    { key: 'notification', label: 'رسالة', value: customer.last_notification_sent || '', changeMessage: '%@' },
-  ]);
+  pass.backFields.push(
+    { key: 'freeEarned',   label: 'مكافآت مكتسبة', value: String(customer.free_visits) },
+    { key: 'lastVisit',    label: 'آخر زيارة',       value: customer.last_visit ? new Date(customer.last_visit).toLocaleDateString('ar-SA') : '' },
+    { key: 'updated',      label: 'آخر تحديث',       value: new Date().toLocaleString('ar-SA') },
+    { key: 'notification', label: 'رسالة',            value: customer.last_notification_sent || '', changeMessage: '%@' }
+  );
 
   // صورة الحظر
   pass.addBuffer('strip.png',    fs.readFileSync(path.join(CUPS_DIR, 'revoked.png')));

@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(railway up *)",
+      "Bash(node *)",
+      "Bash(curl *)",
+      "Bash(railway logs *)",
+      "Bash(python3 -c \"from PIL import Image; print\\('PIL available'\\)\")",
+      "Bash(python3 -c \"import PIL\")",
+      "Bash(python3 *)",
+      "Bash(git add *)"
+    ]
+  }
+}
