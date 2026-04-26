@@ -3,23 +3,16 @@
   "passTypeIdentifier": "pass.com.drrose.loyalty",
   "serialNumber": "10000",
   "teamIdentifier": "FUWS48W4JP",
-  "organizationName": "د. روز للورد",
+  "organizationName": "Dr Rose",
   "description": "بطاقة ولاء د. روز للورد",
-  "logoText": "د. روز للورد",
+  "logoText": "DR ROSE",
   "webServiceURL": "https://dr-rose-loyalty-production.up.railway.app/",
   "authenticationToken": "drrose2024securetoken5678",
-  "foregroundColor": "rgb(255,255,255)",
-  "backgroundColor": "rgb(198,60,120)",
-  "labelColor": "rgb(255,220,240)",
+  "foregroundColor": "rgb(70,35,55)",
+  "backgroundColor": "rgb(250,245,248)",
+  "labelColor": "rgb(180,120,150)",
   "storeCard": {
-    "headerFields": [
-      {
-        "key": "cardNumber",
-        "label": "رقم البطاقة",
-        "value": "10000",
-        "textAlignment": "PKTextAlignmentRight"
-      }
-    ],
+    "headerFields": [],
     "secondaryFields": [],
     "auxiliaryFields": [],
     "backFields": []

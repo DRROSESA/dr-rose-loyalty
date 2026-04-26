@@ -91,41 +91,20 @@ async function makePass(customer) {
   passJson.serialNumber = String(customer.customer_number);
   fs.writeFileSync(PASS_JSON, JSON.stringify(passJson, null, 2));
 
-  // 2. تجهيز حقل الرموز
-  const totalVisits = customer.visits % 5;
-  const dotsArr = [];
-  for (let i = 0; i < 5; i++) {
-    dotsArr.push(i < totalVisits ? '✅' : '⭕');
-  }
-  const dots = dotsArr.join(' ');
+  // 2. حساب الزيارات
+  const visitsCycle = customer.visits % 5;
+  const remaining   = customer.status === 'free_pending' ? 0 : 5 - visitsCycle;
 
-  // 3. حساب التاريخ المعروض
-  let dateLabel = '';
-  let dateValue = '';
-  if (customer.status === 'free_pending' && customer.free_visit_earned_at) {
-    const deadline = new Date(customer.free_visit_earned_at);
-    deadline.setDate(deadline.getDate() + 10);
-    dateLabel = 'آخر موعد للاستبدال';
-    dateValue = deadline.toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' });
-  } else if (customer.cycle_start) {
-    const cycleEnd = new Date(customer.cycle_start);
-    cycleEnd.setDate(cycleEnd.getDate() + 60);
-    dateLabel = 'تجديد الدورة';
-    dateValue = cycleEnd.toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' });
-  }
-
-  // 4. رسالة الإشعار
+  // 3. رسالة الإشعار
   let notifValue = customer.last_notification_sent || '';
   if (customer.notification_msg && customer.notification_msg !== customer.last_notification_sent) {
     notifValue = customer.notification_msg;
   }
 
-  // 5. بناء البطاقة
+  // 4. بناء البطاقة
   const pass = await PKPass.from(
     { model: PASS_MODEL, certificates: getCerts() },
-    {
-      serialNumber: String(customer.customer_number),
-    }
+    { serialNumber: String(customer.customer_number) }
   );
 
   pass.setBarcodes({
@@ -135,40 +114,37 @@ async function makePass(customer) {
     altText: String(customer.customer_number),
   });
 
-  pass.secondaryFields.push(
-    {
-      key: 'visits',
-      label: 'تقدمك',
-      value: customer.status === 'free_pending' ? '🎁 خصم 50% بانتظارك!' : dots,
-      textAlignment: 'PKTextAlignmentRight',
-    },
-    {
-      key: 'customerName',
-      label: 'الاسم',
-      value: customer.name,
-      textAlignment: 'PKTextAlignmentLeft',
-    }
-  );
+  // الحقول — مشابهة لتصميم AK SPA
+  if (customer.status === 'free_pending') {
+    // عندها مكافأة
+    pass.secondaryFields.push(
+      { key: 'collected', label: 'طوابع تم جمعها', value: '5 مكافآت 🎁', textAlignment: 'PKTextAlignmentRight' },
+      { key: 'remaining', label: 'الطوابع حتى المكافأة', value: '0 طوابع',   textAlignment: 'PKTextAlignmentLeft'  }
+    );
+  } else {
+    pass.secondaryFields.push(
+      { key: 'collected', label: 'طوابع تم جمعها',      value: `${visitsCycle} مكافآت`, textAlignment: 'PKTextAlignmentRight' },
+      { key: 'remaining', label: 'الطوابع حتى المكافأة', value: `${remaining} طوابع`,    textAlignment: 'PKTextAlignmentLeft'  }
+    );
+  }
 
-  pass.auxiliaryFields.push({
-    key: 'dateField',
-    label: dateLabel,
-    value: dateValue,
-    textAlignment: 'PKTextAlignmentCenter',
-  });
+  pass.auxiliaryFields.push(
+    { key: 'customerName', label: 'العميلة', value: customer.name, textAlignment: 'PKTextAlignmentRight' }
+  );
 
   pass.backFields.push(
-    { key: 'freeEarned',  label: 'مكافآت مكتسبة',    value: String(customer.free_visits) },
-    { key: 'cycleStart',  label: 'بداية الدورة',       value: customer.cycle_start ? new Date(customer.cycle_start).toLocaleDateString('ar-SA') : '' },
-    { key: 'lastVisit',   label: 'آخر زيارة',          value: customer.last_visit ? new Date(customer.last_visit).toLocaleDateString('ar-SA') : '' },
-    { key: 'updated',     label: 'آخر تحديث',          value: new Date().toLocaleString('ar-SA') },
-    { key: 'notification', label: 'رسالة', value: notifValue, changeMessage: '%@' }
+    { key: 'freeEarned',  label: 'مكافآت مكتسبة',  value: String(customer.free_visits) },
+    { key: 'totalVisits', label: 'إجمالي الزيارات', value: String(customer.visits) },
+    { key: 'cycleStart',  label: 'بداية الدورة',    value: customer.cycle_start ? new Date(customer.cycle_start).toLocaleDateString('ar-SA') : '' },
+    { key: 'lastVisit',   label: 'آخر زيارة',       value: customer.last_visit  ? new Date(customer.last_visit).toLocaleDateString('ar-SA')  : '' },
+    { key: 'reward',      label: 'المكافأة',         value: 'خصم 50% على فاتورتك بعد كل 5 زيارات' },
+    { key: 'updated',     label: 'آخر تحديث',       value: new Date().toLocaleString('ar-SA') },
+    { key: 'notification', label: 'رسالة',           value: notifValue, changeMessage: '%@' }
   );
 
-  // 6. صورة الشريط
-  const stripFiles = getStripFiles(customer.visits % 5);
-  pass.addBuffer('strip.png',    stripFiles['strip.png']);
-  pass.addBuffer('strip@2x.png', stripFiles['strip@2x.png']);
+  // 6. صورة الشريط — الورد دائمًا
+  pass.addBuffer('strip.png',    fs.readFileSync(path.join(PASS_MODEL, 'strip.png')));
+  pass.addBuffer('strip@2x.png', fs.readFileSync(path.join(PASS_MODEL, 'strip@2x.png')));
 
   return pass.getAsBuffer();
 }
@@ -206,9 +182,9 @@ async function makeRevokedPass(customer) {
     { key: 'notification', label: 'رسالة',            value: customer.last_notification_sent || '', changeMessage: '%@' }
   );
 
-  // صورة الحظر
-  pass.addBuffer('strip.png',    fs.readFileSync(path.join(CUPS_DIR, 'revoked.png')));
-  pass.addBuffer('strip@2x.png', fs.readFileSync(path.join(CUPS_DIR, 'revoked@2x.png')));
+  // صورة الشريط — الورد مع تعتيم
+  pass.addBuffer('strip.png',    fs.readFileSync(path.join(PASS_MODEL, 'strip.png')));
+  pass.addBuffer('strip@2x.png', fs.readFileSync(path.join(PASS_MODEL, 'strip@2x.png')));
 
   return pass.getAsBuffer();
 }

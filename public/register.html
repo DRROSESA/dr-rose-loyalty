@@ -4,12 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
   <title>د. روز للورد — بطاقة الولاء</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: -apple-system, 'Segoe UI', Tahoma, sans-serif;
-      background: linear-gradient(160deg, #c63c78 0%, #8b1a4a 100%);
+      font-family: 'Tajawal', -apple-system, sans-serif;
+      background: linear-gradient(160deg, #c63c78 0%, #7a1040 100%);
       min-height: 100dvh;
       display: flex;
       align-items: center;
@@ -19,59 +22,51 @@
 
     .card {
       background: #fff;
-      border-radius: 24px;
+      border-radius: 28px;
       width: 100%;
-      max-width: 400px;
+      max-width: 420px;
       padding: 36px 28px 32px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+      box-shadow: 0 24px 70px rgba(0,0,0,0.28);
     }
 
+    /* شعار */
     .logo {
       text-align: center;
       margin-bottom: 28px;
     }
-    .logo-circle {
-      width: 80px;
-      height: 80px;
-      background: linear-gradient(135deg, #c63c78, #ff89b5);
-      border-radius: 50%;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 36px;
-      margin-bottom: 12px;
-    }
-    .logo h1 {
-      font-size: 22px;
-      font-weight: 700;
-      color: #c63c78;
-      line-height: 1.3;
+    .logo img {
+      width: 160px;
+      height: auto;
+      margin-bottom: 6px;
     }
     .logo p {
-      font-size: 13px;
-      color: #999;
-      margin-top: 4px;
+      font-size: 14px;
+      color: #aaa;
+      font-weight: 500;
+      letter-spacing: 0.3px;
     }
 
-    .form-group {
-      margin-bottom: 18px;
-    }
+    /* فورم */
+    .form-group { margin-bottom: 18px; }
+
     label {
       display: block;
       font-size: 13px;
-      font-weight: 600;
-      color: #555;
+      font-weight: 700;
+      color: #666;
       margin-bottom: 7px;
+      letter-spacing: 0.2px;
     }
+
     input, select {
       width: 100%;
       padding: 13px 16px;
-      border: 1.5px solid #e0e0e0;
-      border-radius: 12px;
-      font-size: 16px;
-      font-family: inherit;
+      border: 1.5px solid #e8e8e8;
+      border-radius: 14px;
+      font-size: 15px;
+      font-family: 'Tajawal', sans-serif;
       outline: none;
-      transition: border-color 0.2s;
+      transition: border-color 0.2s, box-shadow 0.2s;
       background: #fafafa;
       color: #222;
       direction: rtl;
@@ -79,31 +74,40 @@
     input:focus, select:focus {
       border-color: #c63c78;
       background: #fff;
+      box-shadow: 0 0 0 3px rgba(198,60,120,0.1);
     }
-    input.error { border-color: #e53935; }
+
+    /* المدينة — حقلان */
+    .city-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
 
     .btn {
       width: 100%;
       padding: 15px;
-      background: linear-gradient(135deg, #c63c78, #e05090);
+      background: linear-gradient(135deg, #c63c78 0%, #e05090 100%);
       color: #fff;
       border: none;
-      border-radius: 14px;
+      border-radius: 16px;
       font-size: 17px;
-      font-weight: 700;
-      font-family: inherit;
+      font-weight: 800;
+      font-family: 'Tajawal', sans-serif;
       cursor: pointer;
       margin-top: 8px;
       transition: opacity 0.2s, transform 0.1s;
+      letter-spacing: 0.3px;
     }
     .btn:active { transform: scale(0.98); }
-    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
     .msg {
-      margin-top: 16px;
-      padding: 14px 16px;
+      margin-top: 14px;
+      padding: 13px 16px;
       border-radius: 12px;
       font-size: 14px;
+      font-weight: 600;
       text-align: center;
       display: none;
     }
@@ -111,36 +115,43 @@
     .msg.error   { background: #ffebee; color: #c62828; display: block; }
 
     /* شاشة النجاح */
-    .success-screen {
-      display: none;
-      text-align: center;
-    }
-    .success-screen .checkmark {
-      font-size: 64px;
-      margin-bottom: 16px;
-    }
+    .success-screen { display: none; text-align: center; }
+    .success-screen .checkmark { font-size: 68px; margin-bottom: 14px; }
     .success-screen h2 {
-      font-size: 22px;
-      font-weight: 700;
-      color: #2e7d32;
+      font-size: 24px;
+      font-weight: 800;
+      color: #c63c78;
       margin-bottom: 8px;
     }
     .success-screen p {
-      color: #666;
-      font-size: 14px;
-      margin-bottom: 24px;
-      line-height: 1.6;
+      color: #777;
+      font-size: 15px;
+      margin-bottom: 22px;
+      line-height: 1.7;
+      font-weight: 500;
     }
+
+    .customer-number {
+      background: linear-gradient(135deg, #fce4ec, #ffd6e7);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 22px;
+      font-size: 16px;
+      color: #880e4f;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+
     .btn-apple {
       width: 100%;
       padding: 15px;
-      background: #000;
+      background: #111;
       color: #fff;
       border: none;
-      border-radius: 14px;
+      border-radius: 16px;
       font-size: 16px;
-      font-weight: 600;
-      font-family: inherit;
+      font-weight: 700;
+      font-family: 'Tajawal', sans-serif;
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -151,14 +162,17 @@
     }
     .btn-apple svg { width: 22px; height: 22px; fill: white; flex-shrink: 0; }
 
-    .customer-number {
-      background: #fce4ec;
-      border-radius: 12px;
-      padding: 12px;
-      margin-bottom: 20px;
+    .btn-secondary {
+      width: 100%;
+      padding: 13px;
+      background: #f0f0f0;
+      color: #555;
+      border: none;
+      border-radius: 16px;
       font-size: 15px;
-      color: #880e4f;
-      font-weight: 600;
+      font-weight: 700;
+      font-family: 'Tajawal', sans-serif;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -168,14 +182,13 @@
   <!-- فورم التسجيل -->
   <div id="form-section">
     <div class="logo">
-      <div class="logo-circle">🌹</div>
-      <h1>د. روز للورد</h1>
-      <p>سجّل للحصول على بطاقة الولاء</p>
+      <img src="logo.png" alt="Dr Rose" />
+      <p>سجّلي للحصول على بطاقة الولاء</p>
     </div>
 
     <div class="form-group">
       <label for="name">الاسم الكامل</label>
-      <input type="text" id="name" placeholder="مثال: سارة المطيري" autocomplete="name" />
+      <input type="text" id="name" placeholder="مثال: فاطمة أحمد" autocomplete="name" />
     </div>
 
     <div class="form-group">
@@ -184,18 +197,8 @@
     </div>
 
     <div class="form-group">
-      <label for="city">المدينة</label>
-      <select id="city">
-        <option value="">اختر مدينتك</option>
-        <option value="الرياض">الرياض</option>
-        <option value="جدة">جدة</option>
-        <option value="الدمام">الدمام</option>
-        <option value="الاحساء">الاحساء</option>
-        <option value="الخبر">الخبر</option>
-        <option value="مكة المكرمة">مكة المكرمة</option>
-        <option value="المدينة المنورة">المدينة المنورة</option>
-        <option value="أخرى">أخرى</option>
-      </select>
+      <label for="city-text">المدينة</label>
+      <input type="text" id="city-text" placeholder="مثال: الرياض" autocomplete="address-level2" />
     </div>
 
     <button class="btn" id="submit-btn" onclick="register()">تسجيل وتحميل البطاقة</button>
@@ -204,6 +207,9 @@
 
   <!-- شاشة النجاح -->
   <div class="success-screen" id="success-section">
+    <div class="logo" style="margin-bottom:20px">
+      <img src="logo.png" alt="Dr Rose" style="width:120px" />
+    </div>
     <div class="checkmark">🎉</div>
     <h2>أهلاً بك!</h2>
     <p id="success-name"></p>
@@ -212,7 +218,7 @@
       <svg viewBox="0 0 814 1000"><path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76.5 0-103.7 40.8-165.9 40.8s-105-57.8-155.5-127.4C46 336.8 17 189.7 17 100.8c0-60.9 10.9-120.4 33.3-173.7 24.7-59.7 65.8-113.4 116.4-151.5C222.6 2.7 278.9-16 337.5-16c81.2 0 144.2 51.1 192 51.1 46.4 0 119.2-54.2 208.6-54.2zm21.5-94.9c-9.4 41.8-28.1 83.7-59.7 119.5-37.5 41.8-82.8 70.4-132 64.3-.6-4.5-.8-9-0.8-13.5 0-37.5 12.5-77.7 38.9-113.2 26.2-35.3 68.7-66.2 113.8-83.6 4.5 8.9 8.9 19.6 8.9 26.5 0 .8.9 3 9.9 0z"/></svg>
       إضافة إلى Apple Wallet
     </a>
-    <button class="btn" style="background:#666;margin-top:0" onclick="location.reload()">تسجيل عميل آخر</button>
+    <button class="btn-secondary" onclick="location.reload()">تسجيل عميل آخر</button>
   </div>
 
 </div>
@@ -220,7 +226,10 @@
 <script>
 const API = 'https://dr-rose-loyalty-production.up.railway.app';
 let registeredPhone = '';
-let registeredNumber = '';
+
+function getCity() {
+  return document.getElementById('city-text').value.trim();
+}
 
 function showMsg(text, type) {
   const el = document.getElementById('msg');
@@ -237,46 +246,38 @@ function setLoading(on) {
 async function register() {
   const name  = document.getElementById('name').value.trim();
   const phone = document.getElementById('phone').value.trim();
-  const city  = document.getElementById('city').value;
+  const city  = getCity();
 
-  // تحقق بسيط
-  if (!name) { showMsg('يرجى إدخال الاسم', 'error'); return; }
+  if (!name)  { showMsg('يرجى إدخال الاسم', 'error'); return; }
   if (!/^05\d{8}$/.test(phone)) { showMsg('رقم الجوال يجب أن يبدأ بـ 05 ويكون 10 أرقام', 'error'); return; }
 
   setLoading(true);
   showMsg('', '');
 
   try {
-    // تحقق هل مسجّل مسبقاً
-    const checkRes = await fetch(`${API}/check-customer/${phone}`);
+    const checkRes  = await fetch(`${API}/check-customer/${phone}`);
     const checkData = await checkRes.json();
 
     if (checkData.exists) {
       registeredPhone = phone;
-      registeredNumber = checkData.customer.customer_number;
       showSuccess(checkData.customer.name, checkData.customer.customer_number, true);
       return;
     }
 
-    // تسجيل جديد
-    const res = await fetch(`${API}/customer`, {
+    const res  = await fetch(`${API}/customer`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, phone, city })
     });
     const data = await res.json();
 
-    if (!res.ok) {
-      showMsg(data.error || 'حدث خطأ، يرجى المحاولة مجدداً', 'error');
-      return;
-    }
+    if (!res.ok) { showMsg(data.error || 'حدث خطأ، يرجى المحاولة مجدداً', 'error'); return; }
 
     registeredPhone = phone;
-    registeredNumber = data.customer_number;
     showSuccess(name, data.customer_number, false);
 
-  } catch (err) {
-    showMsg('تعذّر الاتصال بالسيرفر، تحقق من الإنترنت', 'error');
+  } catch {
+    showMsg('تعذّر الاتصال، تحقق من الإنترنت', 'error');
   } finally {
     setLoading(false);
   }
@@ -284,13 +285,10 @@ async function register() {
 
 function showSuccess(name, number, existing) {
   document.getElementById('form-section').style.display = 'none';
-  const sec = document.getElementById('success-section');
-  sec.style.display = 'block';
-
+  document.getElementById('success-section').style.display = 'block';
   document.getElementById('success-name').textContent = existing
     ? `مرحباً بعودتك ${name}! بطاقتك جاهزة.`
-    : `تم تسجيلك بنجاح يا ${name}! بطاقتك جاهزة للتحميل.`;
-
+    : `تم تسجيلك بنجاح يا ${name}! 🌹`;
   document.getElementById('customer-number-box').textContent = `رقم بطاقتك: ${number}`;
 }
 
@@ -299,10 +297,10 @@ function downloadPass(e) {
   window.location.href = `${API}/pass/${registeredPhone}`;
 }
 
-// إدخال الجوال — أرقام فقط
-document.getElementById('phone').addEventListener('input', function() {
+document.getElementById('phone').addEventListener('input', function () {
   this.value = this.value.replace(/\D/g, '');
 });
+
 </script>
 </body>
 </html>
