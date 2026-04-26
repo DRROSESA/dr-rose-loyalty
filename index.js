@@ -38,7 +38,7 @@ const CONFIG = {
   },
 
   // Admin
-  adminPassword: 'YOUR-ADMIN-PASSWORD',                // ← كلمة مرور لوحة التحكم
+  adminPassword: 'DrRose@Admin2024',
 
   // رابط السيرفر
   serverURL: 'https://dr-rose-loyalty-production.up.railway.app',

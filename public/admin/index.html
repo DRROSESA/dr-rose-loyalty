@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>لوحة تحكم — د. روز للورد</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --pink:#c63c78;--pink-light:#fce4ec;--pink-dark:#8b1a4a;
+      --text:#2d1520;--gray:#666;--border:#eee;--bg:#f9f4f6;
+    }
+    body{font-family:'Tajawal',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+    /* ── شاشة الدخول ── */
+    #login-screen{
+      display:flex;align-items:center;justify-content:center;
+      min-height:100vh;padding:24px;
+    }
+    .login-card{
+      background:#fff;border-radius:24px;padding:40px 32px;
+      width:100%;max-width:380px;box-shadow:0 16px 48px rgba(198,60,120,.15);
+      text-align:center;
+    }
+    .login-card img{width:140px;margin-bottom:20px}
+    .login-card h2{font-size:20px;font-weight:800;color:var(--pink);margin-bottom:24px}
+    .login-card input{
+      width:100%;padding:13px 16px;border:1.5px solid var(--border);
+      border-radius:12px;font-size:15px;font-family:inherit;
+      outline:none;margin-bottom:14px;direction:rtl;
+    }
+    .login-card input:focus{border-color:var(--pink)}
+
+    /* ── عام ── */
+    .btn{
+      display:inline-flex;align-items:center;justify-content:center;gap:6px;
+      padding:11px 22px;border:none;border-radius:12px;font-family:inherit;
+      font-size:14px;font-weight:700;cursor:pointer;transition:.15s;
+    }
+    .btn-primary{background:var(--pink);color:#fff}
+    .btn-primary:hover{background:var(--pink-dark)}
+    .btn-success{background:#2e7d32;color:#fff}
+    .btn-warn{background:#e65100;color:#fff}
+    .btn-gray{background:#eee;color:#555}
+    .btn-sm{padding:7px 14px;font-size:13px;border-radius:9px}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .btn-full{width:100%}
+
+    /* ── تخطيط الأدمن ── */
+    #admin-screen{display:none}
+    .topbar{
+      background:#fff;border-bottom:1px solid var(--border);
+      padding:14px 24px;display:flex;align-items:center;
+      justify-content:space-between;position:sticky;top:0;z-index:100;
+    }
+    .topbar-logo{display:flex;align-items:center;gap:10px}
+    .topbar-logo img{width:80px}
+    .topbar-logo span{font-size:16px;font-weight:800;color:var(--pink)}
+    .topbar-actions{display:flex;gap:8px}
+
+    .tabs{
+      display:flex;gap:0;border-bottom:2px solid var(--border);
+      background:#fff;padding:0 24px;overflow-x:auto;
+    }
+    .tab{
+      padding:14px 20px;font-size:14px;font-weight:700;color:var(--gray);
+      cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;
+      white-space:nowrap;transition:.15s;
+    }
+    .tab.active{color:var(--pink);border-bottom-color:var(--pink)}
+
+    .content{padding:24px;max-width:1100px;margin:0 auto}
+
+    /* ── البطاقات ── */
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px}
+    .stat-card{
+      background:#fff;border-radius:16px;padding:20px;
+      box-shadow:0 2px 12px rgba(0,0,0,.06);text-align:center;
+    }
+    .stat-card .num{font-size:32px;font-weight:800;color:var(--pink)}
+    .stat-card .lbl{font-size:13px;color:var(--gray);margin-top:4px;font-weight:500}
+
+    /* ── بحث ── */
+    .search-row{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+    .search-input{
+      flex:1;min-width:200px;padding:11px 16px;border:1.5px solid var(--border);
+      border-radius:12px;font-size:14px;font-family:inherit;outline:none;
+    }
+    .search-input:focus{border-color:var(--pink)}
+
+    /* ── جدول العملاء ── */
+    .table-wrap{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+    table{width:100%;border-collapse:collapse}
+    th{background:var(--pink-light);color:var(--pink-dark);font-size:13px;font-weight:800;padding:12px 14px;text-align:right}
+    td{padding:12px 14px;font-size:13px;border-bottom:1px solid var(--border);vertical-align:middle}
+    tr:last-child td{border:none}
+    tr:hover td{background:#fdf5f8}
+
+    .badge{
+      display:inline-block;padding:4px 10px;border-radius:20px;
+      font-size:12px;font-weight:700;
+    }
+    .badge-normal{background:#e8f5e9;color:#2e7d32}
+    .badge-pending{background:#fff3e0;color:#e65100}
+    .badge-revoked{background:#ffebee;color:#c62828}
+
+    .actions-cell{display:flex;gap:6px;flex-wrap:wrap}
+
+    /* ── مودال ── */
+    .modal-bg{
+      display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);
+      z-index:200;align-items:center;justify-content:center;padding:20px;
+    }
+    .modal-bg.open{display:flex}
+    .modal{
+      background:#fff;border-radius:20px;padding:28px;
+      width:100%;max-width:440px;max-height:90vh;overflow-y:auto;
+    }
+    .modal h3{font-size:18px;font-weight:800;color:var(--pink);margin-bottom:18px}
+    .modal label{display:block;font-size:13px;font-weight:700;color:var(--gray);margin-bottom:6px}
+    .modal input,.modal textarea,.modal select{
+      width:100%;padding:11px 14px;border:1.5px solid var(--border);
+      border-radius:11px;font-size:14px;font-family:inherit;outline:none;
+      margin-bottom:14px;direction:rtl;
+    }
+    .modal input:focus,.modal textarea:focus{border-color:var(--pink)}
+    .modal textarea{min-height:90px;resize:vertical}
+    .modal-btns{display:flex;gap:10px;margin-top:4px}
+
+    /* ── scan ── */
+    #scan-box{
+      background:#fff;border-radius:20px;padding:28px;
+      box-shadow:0 2px 12px rgba(0,0,0,.06);margin-bottom:20px;
+    }
+    #scan-box h3{font-size:17px;font-weight:800;color:var(--pink);margin-bottom:16px}
+    #scan-result{
+      margin-top:16px;padding:16px;border-radius:12px;
+      font-size:14px;font-weight:600;display:none;
+    }
+    #scan-result.ok{background:#e8f5e9;color:#2e7d32}
+    #scan-result.err{background:#ffebee;color:#c62828}
+
+    /* ── إشعارات ── */
+    .notif-card{background:#fff;border-radius:16px;padding:24px;box-shadow:0 2px 12px rgba(0,0,0,.06);margin-bottom:16px}
+    .notif-card h3{font-size:16px;font-weight:800;color:var(--pink);margin-bottom:16px}
+
+    /* ── toast ── */
+    #toast{
+      position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+      background:#333;color:#fff;padding:12px 24px;border-radius:50px;
+      font-size:14px;font-weight:600;z-index:999;
+      opacity:0;transition:opacity .3s;pointer-events:none;
+    }
+    #toast.show{opacity:1}
+
+    @media(max-width:600px){
+      .content{padding:14px}
+      .tabs{padding:0 10px}
+      th,td{padding:10px 10px;font-size:12px}
+      .actions-cell{flex-direction:column}
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── شاشة الدخول ── -->
+<div id="login-screen">
+  <div class="login-card">
+    <img src="https://drrsoe-sa.com/logo.png" alt="Dr Rose"/>
+    <h2>لوحة تحكم الأدمن</h2>
+    <input type="password" id="pwd" placeholder="كلمة المرور" onkeydown="if(event.key==='Enter')login()"/>
+    <button class="btn btn-primary btn-full" onclick="login()">دخول</button>
+    <p id="login-err" style="color:#c62828;margin-top:12px;font-size:13px"></p>
+  </div>
+</div>
+
+<!-- ── لوحة الأدمن ── -->
+<div id="admin-screen">
+  <div class="topbar">
+    <div class="topbar-logo">
+      <img src="https://drrsoe-sa.com/logo.png" alt="Dr Rose"/>
+      <span>لوحة التحكم</span>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-gray btn-sm" onclick="logout()">خروج</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('scan')">📷 تسجيل زيارة</div>
+    <div class="tab" onclick="showTab('customers')">👥 العملاء</div>
+    <div class="tab" onclick="showTab('notify')">🔔 الإشعارات</div>
+  </div>
+
+  <!-- ── تبويب: تسجيل زيارة ── -->
+  <div class="content" id="tab-scan">
+    <div id="scan-box">
+      <h3>📷 تسجيل زيارة</h3>
+      <div class="search-row">
+        <input class="search-input" id="visit-input" placeholder="رقم البطاقة أو الجوال" inputmode="numeric"
+               onkeydown="if(event.key==='Enter')recordVisit()"/>
+        <input class="search-input" id="order-input" placeholder="رقم الطلب (اختياري)" style="max-width:200px"/>
+        <button class="btn btn-primary" onclick="recordVisit()">✅ تسجيل</button>
+      </div>
+      <div id="scan-result"></div>
+    </div>
+
+    <!-- إحصائيات سريعة -->
+    <div class="stats" id="stats-row">
+      <div class="stat-card"><div class="num" id="s-total">—</div><div class="lbl">إجمالي العملاء</div></div>
+      <div class="stat-card"><div class="num" id="s-pending">—</div><div class="lbl">ينتظرون مكافأة</div></div>
+      <div class="stat-card"><div class="num" id="s-revoked">—</div><div class="lbl">بطاقات موقوفة</div></div>
+      <div class="stat-card"><div class="num" id="s-apple">—</div><div class="lbl">Apple Wallet</div></div>
+    </div>
+  </div>
+
+  <!-- ── تبويب: العملاء ── -->
+  <div class="content" id="tab-customers" style="display:none">
+    <div class="search-row">
+      <input class="search-input" id="cust-search" placeholder="🔍 بحث بالاسم أو الجوال أو رقم البطاقة" oninput="filterCustomers()"/>
+      <button class="btn btn-primary btn-sm" onclick="openAddCustomer()">+ عميل جديد</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>رقم البطاقة</th>
+            <th>الاسم</th>
+            <th>الجوال</th>
+            <th>المدينة</th>
+            <th>الزيارات</th>
+            <th>الحالة</th>
+            <th>Apple</th>
+            <th>إجراءات</th>
+          </tr>
+        </thead>
+        <tbody id="cust-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── تبويب: الإشعارات ── -->
+  <div class="content" id="tab-notify" style="display:none">
+    <div class="notif-card">
+      <h3>📢 إشعار لكل العملاء</h3>
+      <textarea id="notif-all-msg" placeholder="اكتب رسالتك هنا..."></textarea>
+      <button class="btn btn-primary" onclick="sendNotifyAll()">إرسال للكل</button>
+    </div>
+    <div class="notif-card">
+      <h3>📋 سجل الإشعارات السابقة</h3>
+      <div id="notif-log">جاري التحميل...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── مودال: عميل جديد ── -->
+<div class="modal-bg" id="modal-add">
+  <div class="modal">
+    <h3>➕ إضافة عميل جديد</h3>
+    <label>الاسم الكامل</label>
+    <input id="add-name" placeholder="فاطمة أحمد"/>
+    <label>رقم الجوال</label>
+    <input id="add-phone" placeholder="05xxxxxxxx" inputmode="numeric"/>
+    <label>المدينة</label>
+    <input id="add-city" placeholder="الرياض"/>
+    <div class="modal-btns">
+      <button class="btn btn-primary" style="flex:1" onclick="addCustomer()">إضافة</button>
+      <button class="btn btn-gray" onclick="closeModal('modal-add')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── مودال: إشعار فردي ── -->
+<div class="modal-bg" id="modal-notify">
+  <div class="modal">
+    <h3>🔔 إشعار للعميل</h3>
+    <p id="notify-customer-name" style="color:var(--gray);margin-bottom:14px;font-size:14px"></p>
+    <label>الرسالة</label>
+    <textarea id="notify-msg" placeholder="اكتب رسالتك..."></textarea>
+    <div class="modal-btns">
+      <button class="btn btn-primary" style="flex:1" onclick="sendNotify()">إرسال</button>
+      <button class="btn btn-gray" onclick="closeModal('modal-notify')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── مودال: تعليق البطاقة ── -->
+<div class="modal-bg" id="modal-revoke">
+  <div class="modal">
+    <h3>🚫 تعليق البطاقة</h3>
+    <p id="revoke-customer-name" style="color:var(--gray);margin-bottom:14px;font-size:14px"></p>
+    <label>سبب التعليق</label>
+    <input id="revoke-reason" placeholder="اكتب السبب..."/>
+    <div class="modal-btns">
+      <button class="btn btn-warn" style="flex:1" onclick="revokeCard()">تعليق</button>
+      <button class="btn btn-gray" onclick="closeModal('modal-revoke')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API = 'https://dr-rose-loyalty-production.up.railway.app';
+let customers = [];
+let activeSerial = null;
+
+// ── دخول ──────────────────────────────────────────────────────
+async function login() {
+  const pwd = document.getElementById('pwd').value;
+  const res  = await fetch(`${API}/auth`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ password: pwd })
+  });
+  const data = await res.json();
+  if (data.success) {
+    sessionStorage.setItem('admin', '1');
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('admin-screen').style.display = 'block';
+    loadCustomers();
+    loadNotifLog();
+  } else {
+    document.getElementById('login-err').textContent = 'كلمة المرور غير صحيحة';
+  }
+}
+
+function logout() {
+  sessionStorage.removeItem('admin');
+  location.reload();
+}
+
+// ── تبويبات ────────────────────────────────────────────────────
+function showTab(name) {
+  ['scan','customers','notify'].forEach(t => {
+    document.getElementById(`tab-${t}`).style.display = t===name ? '' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach((el,i) => {
+    el.classList.toggle('active', ['scan','customers','notify'][i] === name);
+  });
+  if (name === 'notify') loadNotifLog();
+}
+
+// ── تحميل العملاء ──────────────────────────────────────────────
+async function loadCustomers() {
+  const res  = await fetch(`${API}/customers`);
+  customers  = await res.json();
+  renderTable(customers);
+  updateStats(customers);
+}
+
+function updateStats(list) {
+  document.getElementById('s-total').textContent   = list.length;
+  document.getElementById('s-pending').textContent = list.filter(c=>c.status==='free_pending').length;
+  document.getElementById('s-revoked').textContent = list.filter(c=>c.revoked).length;
+  document.getElementById('s-apple').textContent   = list.filter(c=>c.has_apple||c.had_apple).length;
+}
+
+function renderTable(list) {
+  const tbody = document.getElementById('cust-table');
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:#aaa">لا يوجد عملاء</td></tr>'; return; }
+  tbody.innerHTML = list.map(c => `
+    <tr>
+      <td><b>${c.customer_number}</b></td>
+      <td>${c.name}</td>
+      <td style="direction:ltr">${c.phone}</td>
+      <td>${c.city||'—'}</td>
+      <td>${c.visits} ${c.visits%5>0?'('+c.visits%5+'/5)':''}</td>
+      <td><span class="badge badge-${c.revoked?'revoked':c.status==='free_pending'?'pending':'normal'}">
+        ${c.revoked?'موقوفة':c.status==='free_pending'?'🎁 مكافأة':'عادي'}
+      </span></td>
+      <td>${c.has_apple||c.had_apple?'✅':'—'}</td>
+      <td>
+        <div class="actions-cell">
+          <button class="btn btn-success btn-sm" onclick="quickVisit('${c.customer_number}')">+ زيارة</button>
+          ${c.status==='free_pending'&&!c.revoked?`<button class="btn btn-warn btn-sm" onclick="redeemFree('${c.phone}')">🎁 استبدال</button>`:''}
+          <button class="btn btn-gray btn-sm" onclick="openNotify('${c.customer_number}','${c.name}')">🔔</button>
+          ${c.revoked
+            ? `<button class="btn btn-success btn-sm" onclick="unrevoke('${c.customer_number}')">فك</button>`
+            : `<button class="btn btn-warn btn-sm" onclick="openRevoke('${c.customer_number}','${c.name}')">🚫</button>`}
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterCustomers() {
+  const q = document.getElementById('cust-search').value.trim().toLowerCase();
+  if (!q) { renderTable(customers); return; }
+  renderTable(customers.filter(c =>
+    c.name.toLowerCase().includes(q) ||
+    c.phone.includes(q) ||
+    String(c.customer_number).includes(q)
+  ));
+}
+
+// ── تسجيل زيارة (بحث) ─────────────────────────────────────────
+async function recordVisit() {
+  const val   = document.getElementById('visit-input').value.trim();
+  const order = document.getElementById('order-input').value.trim();
+  if (!val) return;
+
+  const isPhone  = /^05\d{8}$/.test(val);
+  const endpoint = isPhone ? `/visit/${val}` : `/visit-by-number/${val}`;
+
+  const res  = await fetch(`${API}${endpoint}`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ orderNumber: order })
+  });
+  const data = await res.json();
+  const box  = document.getElementById('scan-result');
+  box.style.display = 'block';
+
+  if (res.ok) {
+    const c = data.customer;
+    const cycle = c.visits % 5;
+    box.className = 'ok';
+    box.innerHTML = `
+      ✅ <b>${c.name}</b> — زيارة رقم ${data.visits}<br/>
+      ${data.status==='free_pending'
+        ? '🎁 <b>أكملت 5 زيارات! خصم 50% بانتظارها</b>'
+        : `تقدمها: ${cycle}/5`}
+    `;
+    loadCustomers();
+    document.getElementById('visit-input').value = '';
+    document.getElementById('order-input').value = '';
+  } else {
+    box.className = 'err';
+    box.textContent = '❌ ' + (data.error || 'خطأ');
+  }
+}
+
+// ── زيارة سريعة من جدول العملاء ───────────────────────────────
+async function quickVisit(serial) {
+  const res  = await fetch(`${API}/visit-by-number/${serial}`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({})
+  });
+  const data = await res.json();
+  if (res.ok) {
+    toast(`✅ ${data.customer.name} — زيارة ${data.visits}`);
+    loadCustomers();
+  } else {
+    toast('❌ ' + (data.error||'خطأ'));
+  }
+}
+
+// ── استبدال مكافأة ─────────────────────────────────────────────
+async function redeemFree(phone) {
+  if (!confirm('تأكيد استبدال المكافأة؟')) return;
+  const res  = await fetch(`${API}/redeem-free/${phone}`, { method:'POST' });
+  const data = await res.json();
+  toast(res.ok ? '🎁 تم الاستبدال بنجاح' : '❌ ' + data.error);
+  loadCustomers();
+}
+
+// ── إضافة عميل ─────────────────────────────────────────────────
+function openAddCustomer() { document.getElementById('modal-add').classList.add('open') }
+
+async function addCustomer() {
+  const name  = document.getElementById('add-name').value.trim();
+  const phone = document.getElementById('add-phone').value.trim();
+  const city  = document.getElementById('add-city').value.trim();
+  if (!name||!phone) { toast('الاسم والجوال مطلوبان'); return; }
+  const res  = await fetch(`${API}/customer`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name,phone,city})
+  });
+  const data = await res.json();
+  if (res.ok) {
+    toast('✅ تم إضافة العميل — رقم البطاقة: ' + data.customer_number);
+    closeModal('modal-add');
+    loadCustomers();
+  } else { toast('❌ ' + data.error); }
+}
+
+// ── إشعار فردي ─────────────────────────────────────────────────
+function openNotify(serial, name) {
+  activeSerial = serial;
+  document.getElementById('notify-customer-name').textContent = name;
+  document.getElementById('notify-msg').value = '';
+  document.getElementById('modal-notify').classList.add('open');
+}
+
+async function sendNotify() {
+  const msg = document.getElementById('notify-msg').value.trim();
+  if (!msg) return;
+  const res = await fetch(`${API}/notify/${activeSerial}`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({message:msg})
+  });
+  toast(res.ok ? '✅ تم إرسال الإشعار' : '❌ خطأ');
+  closeModal('modal-notify');
+}
+
+// ── إشعار للكل ─────────────────────────────────────────────────
+async function sendNotifyAll() {
+  const msg = document.getElementById('notif-all-msg').value.trim();
+  if (!msg) { toast('اكتب الرسالة أولاً'); return; }
+  if (!confirm(`إرسال للكل: "${msg}"؟`)) return;
+  const res  = await fetch(`${API}/notify-all`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({message:msg})
+  });
+  const data = await res.json();
+  toast(res.ok ? `✅ أُرسل لـ ${data.sentCount} عميل` : '❌ خطأ');
+  document.getElementById('notif-all-msg').value = '';
+  loadNotifLog();
+}
+
+// ── سجل الإشعارات ──────────────────────────────────────────────
+async function loadNotifLog() {
+  const res  = await fetch(`${API}/notification-logs`);
+  const logs = await res.json();
+  const el   = document.getElementById('notif-log');
+  if (!logs.length) { el.innerHTML = '<p style="color:#aaa;font-size:13px">لا يوجد سجل</p>'; return; }
+  el.innerHTML = logs.slice(0,20).map(l => `
+    <div style="border-bottom:1px solid var(--border);padding:12px 0">
+      <div style="font-weight:700;font-size:13px">${l.title} — <span style="color:var(--gray)">${new Date(l.created_at).toLocaleString('ar-SA')}</span></div>
+      <div style="margin-top:4px;font-size:14px">${l.message}</div>
+      <div style="margin-top:4px;font-size:12px;color:var(--gray)">أُرسل لـ ${l.sent_count} عميل</div>
+    </div>
+  `).join('');
+}
+
+// ── تعليق البطاقة ──────────────────────────────────────────────
+function openRevoke(serial, name) {
+  activeSerial = serial;
+  document.getElementById('revoke-customer-name').textContent = name;
+  document.getElementById('revoke-reason').value = '';
+  document.getElementById('modal-revoke').classList.add('open');
+}
+
+async function revokeCard() {
+  const reason = document.getElementById('revoke-reason').value.trim();
+  if (!reason) { toast('اكتب سبب التعليق'); return; }
+  const res = await fetch(`${API}/revoke/${activeSerial}`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({reason})
+  });
+  toast(res.ok ? '✅ تم تعليق البطاقة' : '❌ خطأ');
+  closeModal('modal-revoke');
+  loadCustomers();
+}
+
+async function unrevoke(serial) {
+  if (!confirm('فك تعليق البطاقة؟')) return;
+  const res = await fetch(`${API}/unrevoke/${serial}`, { method:'POST' });
+  toast(res.ok ? '✅ تم فك التعليق' : '❌ خطأ');
+  loadCustomers();
+}
+
+// ── مساعدات ────────────────────────────────────────────────────
+function closeModal(id) { document.getElementById(id).classList.remove('open') }
+document.querySelectorAll('.modal-bg').forEach(m => m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open') }));
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// تحقق من الجلسة
+if (sessionStorage.getItem('admin')) {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('admin-screen').style.display = 'block';
+  loadCustomers();
+  loadNotifLog();
+}
+
+document.getElementById('pwd').addEventListener('keydown', e => { if(e.key==='Enter') login(); });
+</script>
+</body>
+</html>
