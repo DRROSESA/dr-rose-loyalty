@@ -16,14 +16,14 @@ app.use(cors());
 // ─── إعدادات قابلة للتعديل ─────────────────────────────────────────────────
 const CONFIG = {
   // Apple Wallet
-  passTypeIdentifier: 'pass.com.DrRose.loyalty',      // ← عدّل
-  teamIdentifier: 'XXXXXXXXXX',                        // ← Apple Team ID
-  authenticationToken: 'drrose2024securetoken5678',    // ← نص عشوائي ≥16 حرف
+  passTypeIdentifier: 'pass.com.drrose.loyalty',
+  teamIdentifier: 'FUWS48W4JP',
+  authenticationToken: 'drrose2024securetoken5678',
   webServiceURL: 'https://dr-rose-loyalty-production.up.railway.app/',
 
   // APNs
-  apnsKeyId: 'XXXXXXXXXX',                             // ← Key ID من Apple
-  apnsTeamId: 'XXXXXXXXXX',                            // ← نفس teamIdentifier
+  apnsKeyId: '77B9MGGJBA',
+  apnsTeamId: 'FUWS48W4JP',
 
   // Google Wallet
   issuerId: 'XXXXXXXXXXXXXXXXXX',                      // ← Google Wallet Issuer ID
@@ -61,7 +61,7 @@ async function getDB() {
 // ─── مسارات الملفات ──────────────────────────────────────────────────────────
 const PASS_MODEL  = path.join(__dirname, 'pass.pass');
 const CERTS_DIR   = path.join(__dirname, 'certs');
-const CUPS_DIR    = path.join(__dirname, 'cups');
+const CUPS_DIR    = path.join(__dirname, 'images');
 const PASS_JSON   = path.join(PASS_MODEL, 'pass.json');
 const APNS_KEY    = path.join(CERTS_DIR, `AuthKey_${CONFIG.apnsKeyId}.p8`);
 
@@ -291,7 +291,7 @@ function getGooglePassObject(customer) {
       alternateText: String(customer.customer_number),
     },
     heroImage: {
-      sourceUri: { uri: `${CONFIG.serverURL}/cups/${heroIdx}.png` },
+      sourceUri: { uri: `${CONFIG.serverURL}/images/${heroIdx}.png` },
       contentDescription: { defaultValue: { language: 'ar', value: `${heroIdx} كوب` } },
     },
     textModulesData: [
@@ -1012,7 +1012,7 @@ app.get('/pass/:phone', async (req, res) => {
 });
 
 // صور الكوبات
-app.get('/cups/:file', (req, res) => {
+app.get('/images/:file', (req, res) => {
   const filePath = path.join(CUPS_DIR, req.params.file);
   if (!fs.existsSync(filePath)) return res.sendStatus(404);
   res.sendFile(filePath);
