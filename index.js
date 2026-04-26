@@ -68,9 +68,9 @@ const APNS_KEY    = path.join(CERTS_DIR, `AuthKey_${CONFIG.apnsKeyId}.p8`);
 // ─── الشهادات ────────────────────────────────────────────────────────────────
 function getCerts() {
   return {
-    wwdr:       { buffer: fs.readFileSync(path.join(CERTS_DIR, 'wwdr.pem')) },
-    signerCert: { buffer: fs.readFileSync(path.join(CERTS_DIR, 'pass.pem')) },
-    signerKey:  { buffer: fs.readFileSync(path.join(CERTS_DIR, 'pass.key')) },
+    wwdr:       fs.readFileSync(path.join(CERTS_DIR, 'wwdr.pem')),
+    signerCert: fs.readFileSync(path.join(CERTS_DIR, 'pass.pem')),
+    signerKey:  fs.readFileSync(path.join(CERTS_DIR, 'pass.key')),
   };
 }
 
