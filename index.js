@@ -1043,6 +1043,8 @@ app.post('/auth', (req, res) => {
 //  تشغيل السيرفر
 // ═══════════════════════════════════════════════════════════════════════════════
 
+app.use(express.static(path.join(__dirname, 'public')));
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`د. روز للورد — Loyalty Server running on port ${PORT}`);
