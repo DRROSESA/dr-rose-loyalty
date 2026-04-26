@@ -1,0 +1,98 @@
+{
+  "formatVersion": 1,
+  "passTypeIdentifier": "pass.com.DrRose.loyalty",
+  "serialNumber": "10000",
+  "teamIdentifier": "XXXXXXXXXX",
+  "organizationName": "د. روز للورد",
+  "description": "بطاقة ولاء د. روز للورد",
+  "logoText": "د. روز للورد",
+
+  "webServiceURL": "https://dr-rose-loyalty-production.up.railway.app/",
+  "authenticationToken": "drrose2024securetoken5678",
+
+  "foregroundColor": "rgb(255,255,255)",
+  "backgroundColor": "rgb(198,60,120)",
+  "labelColor": "rgb(255,220,240)",
+
+  "storeCard": {
+    "headerFields": [
+      {
+        "key": "cardNumber",
+        "label": "رقم البطاقة",
+        "value": "10000",
+        "textAlignment": "PKTextAlignmentRight"
+      }
+    ],
+    "secondaryFields": [
+      {
+        "key": "visits",
+        "label": "تقدمك",
+        "value": "⭕ ⭕ ⭕ ⭕ ⭕",
+        "textAlignment": "PKTextAlignmentRight"
+      },
+      {
+        "key": "customerName",
+        "label": "الاسم",
+        "value": "",
+        "textAlignment": "PKTextAlignmentLeft"
+      }
+    ],
+    "auxiliaryFields": [
+      {
+        "key": "dateField",
+        "label": "تجديد الدورة",
+        "value": "",
+        "textAlignment": "PKTextAlignmentCenter"
+      }
+    ],
+    "backFields": [
+      {
+        "key": "freeEarned",
+        "label": "مكافآت مكتسبة",
+        "value": "0"
+      },
+      {
+        "key": "reward",
+        "label": "المكافأة",
+        "value": "خصم 50% على فاتورتك القادمة بعد كل 5 زيارات"
+      },
+      {
+        "key": "cycleStart",
+        "label": "بداية الدورة",
+        "value": ""
+      },
+      {
+        "key": "lastVisit",
+        "label": "آخر زيارة",
+        "value": ""
+      },
+      {
+        "key": "updated",
+        "label": "آخر تحديث",
+        "value": ""
+      },
+      {
+        "key": "notification",
+        "label": "رسالة",
+        "value": "",
+        "changeMessage": "%@"
+      }
+    ]
+  },
+
+  "barcode": {
+    "message": "10000",
+    "format": "PKBarcodeFormatQR",
+    "messageEncoding": "iso-8859-1",
+    "altText": "10000"
+  },
+
+  "barcodes": [
+    {
+      "message": "10000",
+      "format": "PKBarcodeFormatQR",
+      "messageEncoding": "iso-8859-1",
+      "altText": "10000"
+    }
+  ]
+}
