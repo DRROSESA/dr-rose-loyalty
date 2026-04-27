@@ -13,7 +13,8 @@
       "Bash(git push *)",
       "Bash(kill %1)",
       "Bash(ssh *)",
-      "Bash(scp *)"
+      "Bash(scp *)",
+      "Bash(npm install *)"
     ]
   }
 }

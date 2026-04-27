@@ -192,6 +192,7 @@
     <div class="tab active" onclick="showTab('scan')">📷 تسجيل زيارة</div>
     <div class="tab" onclick="showTab('customers')">👥 العملاء</div>
     <div class="tab" onclick="showTab('notify')">🔔 الإشعارات</div>
+    <div class="tab" onclick="showTab('settings')">⚙️ الإعدادات</div>
   </div>
 
   <!-- ── تبويب: تسجيل زيارة ── -->
@@ -287,6 +288,126 @@
       <h3>📋 سجل الإشعارات السابقة</h3>
       <div id="notif-log">جاري التحميل...</div>
     </div>
+  </div>
+
+  <!-- ── تبويب: الإعدادات ── -->
+  <div class="content" id="tab-settings" style="display:none">
+
+    <!-- معاينة البطاقة -->
+    <div class="notif-card" style="margin-bottom:16px">
+      <h3>👁️ معاينة البطاقة</h3>
+      <div id="pass-preview" style="
+        border-radius:16px;padding:20px;margin-top:16px;
+        background:rgb(250,245,248);color:rgb(70,35,55);
+        max-width:360px;box-shadow:0 4px 20px rgba(0,0,0,.15);
+      ">
+        <div style="font-size:11px;font-weight:800;letter-spacing:1px;color:rgb(180,120,150);margin-bottom:8px" id="prev-logotext">DR ROSE</div>
+        <div id="prev-strip" style="height:100px;border-radius:10px;background:#ddd;overflow:hidden;margin-bottom:12px">
+          <img id="prev-strip-img" src="" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'"/>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px">
+          <div><div style="font-size:11px;opacity:.7" id="prev-label1">طوابع تم جمعها</div><div id="prev-val1" style="font-weight:800">0 مكافآت</div></div>
+          <div style="text-align:left"><div style="font-size:11px;opacity:.7" id="prev-label2">الطوابع حتى المكافأة</div><div id="prev-val2" style="font-weight:800">5 طوابع</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- الألوان -->
+    <div class="notif-card">
+      <h3>🎨 ألوان البطاقة</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px">
+
+        <div>
+          <label style="display:block;font-size:13px;font-weight:700;color:var(--gray);margin-bottom:8px">لون الخلفية</label>
+          <div style="display:flex;align-items:center;gap:10px">
+            <input type="color" id="col-bg" value="#faf5f8" oninput="onColorChange()" style="width:48px;height:40px;border:none;border-radius:8px;cursor:pointer"/>
+            <input type="text" id="col-bg-text" placeholder="rgb(250,245,248)" oninput="syncColorFromText('bg')"
+              style="flex:1;padding:8px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:inherit"/>
+          </div>
+        </div>
+
+        <div>
+          <label style="display:block;font-size:13px;font-weight:700;color:var(--gray);margin-bottom:8px">لون النص</label>
+          <div style="display:flex;align-items:center;gap:10px">
+            <input type="color" id="col-fg" value="#46233b" oninput="onColorChange()" style="width:48px;height:40px;border:none;border-radius:8px;cursor:pointer"/>
+            <input type="text" id="col-fg-text" placeholder="rgb(70,35,55)" oninput="syncColorFromText('fg')"
+              style="flex:1;padding:8px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:inherit"/>
+          </div>
+        </div>
+
+        <div>
+          <label style="display:block;font-size:13px;font-weight:700;color:var(--gray);margin-bottom:8px">لون التسميات</label>
+          <div style="display:flex;align-items:center;gap:10px">
+            <input type="color" id="col-lbl" value="#b47896" oninput="onColorChange()" style="width:48px;height:40px;border:none;border-radius:8px;cursor:pointer"/>
+            <input type="text" id="col-lbl-text" placeholder="rgb(180,120,150)" oninput="syncColorFromText('lbl')"
+              style="flex:1;padding:8px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:inherit"/>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- النصوص -->
+    <div class="notif-card">
+      <h3>📝 نصوص البطاقة</h3>
+      <div style="display:grid;gap:14px;margin-top:8px">
+        <div>
+          <label style="display:block;font-size:13px;font-weight:700;color:var(--gray);margin-bottom:6px">نص الشعار (logoText)</label>
+          <input type="text" id="set-logotext" placeholder="DR ROSE"
+            style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:11px;font-size:14px;font-family:inherit;outline:none"/>
+        </div>
+        <div>
+          <label style="display:block;font-size:13px;font-weight:700;color:var(--gray);margin-bottom:6px">اسم المتجر</label>
+          <input type="text" id="set-orgname" placeholder="Dr Rose"
+            style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:11px;font-size:14px;font-family:inherit;outline:none"/>
+        </div>
+        <div>
+          <label style="display:block;font-size:13px;font-weight:700;color:var(--gray);margin-bottom:6px">وصف البطاقة</label>
+          <input type="text" id="set-desc" placeholder="بطاقة ولاء د. روز للورد"
+            style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:11px;font-size:14px;font-family:inherit;outline:none"/>
+        </div>
+        <div>
+          <label style="display:block;font-size:13px;font-weight:700;color:var(--gray);margin-bottom:6px">نص المكافأة (ظهر البطاقة)</label>
+          <input type="text" id="set-reward" placeholder="خصم 50% أو بوكيه مجاني 💐 بعد كل 5 زيارات"
+            style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:11px;font-size:14px;font-family:inherit;outline:none"/>
+        </div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:16px;width:100%" onclick="saveSettings()">💾 حفظ الإعدادات</button>
+    </div>
+
+    <!-- الصور -->
+    <div class="notif-card">
+      <h3>🖼️ صورة البطاقة (Strip)</h3>
+
+      <div style="margin-bottom:20px">
+        <label style="display:block;font-size:13px;font-weight:700;color:var(--gray);margin-bottom:10px">وضع الصور</label>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-sm" id="mode-single" onclick="setStripMode('single')" style="background:var(--pink);color:#fff">
+            🖼️ صورة واحدة للكل
+          </button>
+          <button class="btn btn-sm btn-gray" id="mode-pervisit" onclick="setStripMode('per-visit')">
+            🎞️ صورة لكل زيارة
+          </button>
+        </div>
+      </div>
+
+      <!-- صورة واحدة -->
+      <div id="upload-single">
+        <label style="display:block;font-size:13px;font-weight:700;color:var(--gray);margin-bottom:8px">رفع الصورة الرئيسية</label>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <input type="file" id="file-strip" accept="image/*" onchange="previewStrip(this)" style="flex:1"/>
+          <button class="btn btn-primary btn-sm" onclick="uploadStrip()">رفع</button>
+        </div>
+        <img id="strip-preview" style="margin-top:12px;max-width:100%;border-radius:10px;display:none"/>
+      </div>
+
+      <!-- صورة لكل زيارة -->
+      <div id="upload-pervisit" style="display:none">
+        <p style="font-size:13px;color:var(--gray);margin-bottom:14px">رفع صورة مختلفة لكل مرحلة (0 = بداية الدورة، 5 = اكتملت)</p>
+        <div id="per-visit-uploads"></div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -388,13 +509,14 @@ function logout() {
 
 // ── تبويبات ────────────────────────────────────────────────────
 function showTab(name) {
-  ['scan','customers','notify'].forEach(t => {
+  ['scan','customers','notify','settings'].forEach(t => {
     document.getElementById(`tab-${t}`).style.display = t===name ? '' : 'none';
   });
   document.querySelectorAll('.tab').forEach((el,i) => {
-    el.classList.toggle('active', ['scan','customers','notify'][i] === name);
+    el.classList.toggle('active', ['scan','customers','notify','settings'][i] === name);
   });
   if (name === 'notify') loadNotifLog();
+  if (name === 'settings' && !settingsLoaded) { settingsLoaded = true; loadSettings(); }
 }
 
 // ── تحميل العملاء ──────────────────────────────────────────────
@@ -698,6 +820,162 @@ async function unrevoke(serial) {
   toast(res.ok ? '✅ تم فك التعليق' : '❌ خطأ');
   loadCustomers();
 }
+
+// ══════════════════════════════════════════════════════════════
+// ── الإعدادات ─────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+let currentSettings = {};
+let currentStripMode = 'single';
+
+async function loadSettings() {
+  const res  = await fetch(`${API}/admin/settings`);
+  const s    = await res.json();
+  currentSettings = s;
+  currentStripMode = s.stripMode || 'single';
+
+  // ألوان
+  document.getElementById('col-bg-text').value  = s.backgroundColor  || '';
+  document.getElementById('col-fg-text').value  = s.foregroundColor  || '';
+  document.getElementById('col-lbl-text').value = s.labelColor       || '';
+  try { document.getElementById('col-bg').value  = rgbToHex(s.backgroundColor); } catch {}
+  try { document.getElementById('col-fg').value  = rgbToHex(s.foregroundColor); } catch {}
+  try { document.getElementById('col-lbl').value = rgbToHex(s.labelColor); } catch {}
+
+  // نصوص
+  document.getElementById('set-logotext').value = s.logoText         || '';
+  document.getElementById('set-orgname').value  = s.organizationName || '';
+  document.getElementById('set-desc').value     = s.description      || '';
+  document.getElementById('set-reward').value   = s.rewardText       || '';
+
+  setStripMode(currentStripMode, false);
+  updatePreview();
+}
+
+function rgbToHex(rgb) {
+  const m = rgb.match(/(\d+),\s*(\d+),\s*(\d+)/);
+  if (!m) return '#ffffff';
+  return '#' + [m[1],m[2],m[3]].map(x => parseInt(x).toString(16).padStart(2,'0')).join('');
+}
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `rgb(${r},${g},${b})`;
+}
+
+function onColorChange() {
+  document.getElementById('col-bg-text').value  = hexToRgb(document.getElementById('col-bg').value);
+  document.getElementById('col-fg-text').value  = hexToRgb(document.getElementById('col-fg').value);
+  document.getElementById('col-lbl-text').value = hexToRgb(document.getElementById('col-lbl').value);
+  updatePreview();
+}
+
+function syncColorFromText(which) {
+  updatePreview();
+}
+
+function updatePreview() {
+  const bg  = document.getElementById('col-bg-text').value  || 'rgb(250,245,248)';
+  const fg  = document.getElementById('col-fg-text').value  || 'rgb(70,35,55)';
+  const lbl = document.getElementById('col-lbl-text').value || 'rgb(180,120,150)';
+  const lt  = document.getElementById('set-logotext').value || 'DR ROSE';
+
+  const prev = document.getElementById('pass-preview');
+  prev.style.background = bg;
+  prev.style.color      = fg;
+  document.getElementById('prev-logotext').style.color = lbl;
+  document.getElementById('prev-logotext').textContent = lt;
+  document.getElementById('prev-label1').style.color   = lbl;
+  document.getElementById('prev-label2').style.color   = lbl;
+}
+
+async function saveSettings() {
+  const body = {
+    backgroundColor:  document.getElementById('col-bg-text').value,
+    foregroundColor:  document.getElementById('col-fg-text').value,
+    labelColor:       document.getElementById('col-lbl-text').value,
+    logoText:         document.getElementById('set-logotext').value,
+    organizationName: document.getElementById('set-orgname').value,
+    description:      document.getElementById('set-desc').value,
+    rewardText:       document.getElementById('set-reward').value,
+    stripMode:        currentStripMode,
+  };
+  const res = await fetch(`${API}/admin/settings`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+  });
+  toast(res.ok ? '✅ تم حفظ الإعدادات' : '❌ خطأ في الحفظ');
+}
+
+function setStripMode(mode, save = false) {
+  currentStripMode = mode;
+  document.getElementById('mode-single').style.background   = mode==='single'    ? 'var(--pink)' : '';
+  document.getElementById('mode-single').style.color        = mode==='single'    ? '#fff' : '';
+  document.getElementById('mode-pervisit').style.background = mode==='per-visit' ? 'var(--pink)' : '';
+  document.getElementById('mode-pervisit').style.color      = mode==='per-visit' ? '#fff' : '';
+  document.getElementById('mode-single').className    = mode==='single'    ? 'btn btn-sm' : 'btn btn-sm btn-gray';
+  document.getElementById('mode-pervisit').className  = mode==='per-visit' ? 'btn btn-sm' : 'btn btn-sm btn-gray';
+
+  document.getElementById('upload-single').style.display   = mode==='single'    ? '' : 'none';
+  document.getElementById('upload-pervisit').style.display = mode==='per-visit' ? '' : 'none';
+
+  if (mode === 'per-visit') renderPerVisitUploads();
+  if (save) saveSettings();
+}
+
+function renderPerVisitUploads() {
+  const labels = ['0 زيارات (بداية)','1 زيارة','2 زيارة','3 زيارات','4 زيارات','5 زيارات (مكتملة 🎁)'];
+  document.getElementById('per-visit-uploads').innerHTML = labels.map((lbl,n) => `
+    <div style="background:#f9f4f6;border-radius:12px;padding:14px;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--pink)">${lbl}</div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <input type="file" id="pv-file-${n}" accept="image/*" onchange="previewPV(${n},this)" style="flex:1"/>
+        <button class="btn btn-primary btn-sm" onclick="uploadPerVisit(${n})">رفع</button>
+      </div>
+      <img id="pv-preview-${n}" style="margin-top:10px;max-width:100%;border-radius:8px;display:none;max-height:80px;object-fit:cover"/>
+    </div>
+  `).join('');
+}
+
+function previewStrip(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const img = document.getElementById('strip-preview');
+  img.src = URL.createObjectURL(file);
+  img.style.display = 'block';
+  // تحديث المعاينة
+  document.getElementById('prev-strip-img').src = img.src;
+  document.getElementById('prev-strip-img').style.display = 'block';
+}
+
+function previewPV(n, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const img = document.getElementById(`pv-preview-${n}`);
+  img.src = URL.createObjectURL(file);
+  img.style.display = 'block';
+}
+
+async function uploadStrip() {
+  const file = document.getElementById('file-strip').files[0];
+  if (!file) { toast('اختر صورة أولاً'); return; }
+  const fd = new FormData();
+  fd.append('strip', file);
+  const res = await fetch(`${API}/admin/upload-strip`, { method:'POST', body: fd });
+  toast(res.ok ? '✅ تم رفع الصورة' : '❌ خطأ في الرفع');
+}
+
+async function uploadPerVisit(n) {
+  const file = document.getElementById(`pv-file-${n}`).files[0];
+  if (!file) { toast('اختر صورة أولاً'); return; }
+  const fd = new FormData();
+  fd.append('strip', file);
+  const res = await fetch(`${API}/admin/upload-strip/${n}`, { method:'POST', body: fd });
+  toast(res.ok ? `✅ تم رفع صورة الزيارة ${n}` : '❌ خطأ في الرفع');
+}
+
+// showTab يحمّل الإعدادات عند أول دخول
+let settingsLoaded = false;
 
 // ── مساعدات ────────────────────────────────────────────────────
 function closeModal(id) { document.getElementById(id).classList.remove('open') }

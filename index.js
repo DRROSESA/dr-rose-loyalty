@@ -8,9 +8,10 @@ const jwt = require('jsonwebtoken');
 const fetch = require('node-fetch');
 const { GoogleAuth } = require('google-auth-library');
 const cors = require('cors');
+const multer = require('multer');
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '20mb' }));
 app.use(cors());
 
 // ─── إعدادات قابلة للتعديل ─────────────────────────────────────────────────
@@ -64,6 +65,38 @@ const CERTS_DIR   = path.join(__dirname, 'certs');
 const CUPS_DIR    = path.join(__dirname, 'images');
 const PASS_JSON   = path.join(PASS_MODEL, 'pass.json');
 const APNS_KEY    = path.join(CERTS_DIR, `AuthKey_${CONFIG.apnsKeyId}.p8`);
+const SETTINGS_FILE = path.join(__dirname, 'pass-settings.json');
+
+// ─── إعدادات البطاقة (قابلة للتعديل من لوحة الأدمن) ─────────────────────────
+function loadPassSettings() {
+  if (fs.existsSync(SETTINGS_FILE)) {
+    try { return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')); } catch {}
+  }
+  return {
+    backgroundColor:  'rgb(250,245,248)',
+    foregroundColor:  'rgb(70,35,55)',
+    labelColor:       'rgb(180,120,150)',
+    logoText:         'DR ROSE',
+    organizationName: 'Dr Rose',
+    description:      'بطاقة ولاء د. روز للورد',
+    rewardText:       'خصم 50% على فاتورتك أو بوكيه مجاني 💐 بعد كل 5 زيارات',
+    stripMode:        'single',   // 'single' = صورة واحدة | 'per-visit' = لكل زيارة
+  };
+}
+
+function savePassSettings(s) {
+  fs.writeFileSync(SETTINGS_FILE, JSON.stringify(s, null, 2));
+}
+
+// ─── multer لرفع الصور ────────────────────────────────────────────────────────
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('الملف يجب أن يكون صورة'));
+  },
+});
 
 // ─── الشهادات ────────────────────────────────────────────────────────────────
 function getCerts() {
@@ -86,9 +119,17 @@ function getStripFiles(visits) {
 
 // ─── بناء بطاقة Apple Wallet ────────────────────────────────────────────────
 async function makePass(customer) {
-  // 1. تحديث serialNumber على الملف
+  const S = loadPassSettings();
+
+  // 1. تحديث pass.json بالإعدادات الحالية
   const passJson = JSON.parse(fs.readFileSync(PASS_JSON, 'utf8'));
-  passJson.serialNumber = String(customer.customer_number);
+  passJson.serialNumber    = String(customer.customer_number);
+  passJson.backgroundColor = S.backgroundColor;
+  passJson.foregroundColor = S.foregroundColor;
+  passJson.labelColor      = S.labelColor;
+  passJson.logoText        = S.logoText;
+  passJson.organizationName = S.organizationName;
+  passJson.description     = S.description;
   fs.writeFileSync(PASS_JSON, JSON.stringify(passJson, null, 2));
 
   // 2. حساب الزيارات
@@ -137,14 +178,22 @@ async function makePass(customer) {
     { key: 'totalVisits', label: 'إجمالي الزيارات', value: String(customer.visits) },
     { key: 'cycleStart',  label: 'بداية الدورة',    value: customer.cycle_start ? new Date(customer.cycle_start).toLocaleDateString('ar-SA') : '' },
     { key: 'lastVisit',   label: 'آخر زيارة',       value: customer.last_visit  ? new Date(customer.last_visit).toLocaleDateString('ar-SA')  : '' },
-    { key: 'reward',      label: 'المكافأة',         value: 'خصم 50% على فاتورتك بعد كل 5 زيارات' },
+    { key: 'reward',      label: 'المكافأة',         value: S.rewardText },
     { key: 'updated',     label: 'آخر تحديث',       value: new Date().toLocaleString('ar-SA') },
     { key: 'notification', label: 'رسالة',           value: notifValue, changeMessage: '%@' }
   );
 
-  // 6. صورة الشريط — الورد دائمًا
-  pass.addBuffer('strip.png',    fs.readFileSync(path.join(PASS_MODEL, 'strip.png')));
-  pass.addBuffer('strip@2x.png', fs.readFileSync(path.join(PASS_MODEL, 'strip@2x.png')));
+  // 6. صورة الشريط — single أو per-visit
+  if (S.stripMode === 'per-visit') {
+    const n = Math.min(customer.visits % 5, 5);
+    const p1 = path.join(CUPS_DIR, `${n}.png`);
+    const p2 = path.join(CUPS_DIR, `${n}@2x.png`);
+    pass.addBuffer('strip.png',    fs.existsSync(p1) ? fs.readFileSync(p1) : fs.readFileSync(path.join(PASS_MODEL, 'strip.png')));
+    pass.addBuffer('strip@2x.png', fs.existsSync(p2) ? fs.readFileSync(p2) : fs.readFileSync(path.join(PASS_MODEL, 'strip@2x.png')));
+  } else {
+    pass.addBuffer('strip.png',    fs.readFileSync(path.join(PASS_MODEL, 'strip.png')));
+    pass.addBuffer('strip@2x.png', fs.readFileSync(path.join(PASS_MODEL, 'strip@2x.png')));
+  }
 
   return pass.getAsBuffer();
 }
@@ -1045,6 +1094,55 @@ app.post('/auth', (req, res) => {
   } else {
     res.status(401).json({ success: false, error: 'كلمة المرور غير صحيحة' });
   }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  إعدادات البطاقة
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// قراءة الإعدادات الحالية
+app.get('/admin/settings', (req, res) => {
+  res.json(loadPassSettings());
+});
+
+// حفظ الإعدادات النصية والألوان
+app.post('/admin/settings', (req, res) => {
+  try {
+    const current = loadPassSettings();
+    const allowed = ['backgroundColor','foregroundColor','labelColor','logoText','organizationName','description','rewardText','stripMode'];
+    const updated = { ...current };
+    allowed.forEach(k => { if (req.body[k] !== undefined) updated[k] = req.body[k]; });
+    savePassSettings(updated);
+    res.json({ success: true, settings: updated });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// رفع صورة strip عامة
+app.post('/admin/upload-strip', upload.fields([
+  { name: 'strip', maxCount: 1 },
+  { name: 'strip2x', maxCount: 1 },
+]), (req, res) => {
+  try {
+    if (req.files['strip'])   fs.writeFileSync(path.join(PASS_MODEL, 'strip.png'),    req.files['strip'][0].buffer);
+    if (req.files['strip2x']) fs.writeFileSync(path.join(PASS_MODEL, 'strip@2x.png'), req.files['strip2x'][0].buffer);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// رفع صورة لزيارة محددة (0-5)
+app.post('/admin/upload-strip/:n', upload.fields([
+  { name: 'strip', maxCount: 1 },
+  { name: 'strip2x', maxCount: 1 },
+]), (req, res) => {
+  try {
+    const n = parseInt(req.params.n);
+    if (isNaN(n) || n < 0 || n > 5) return res.status(400).json({ error: 'رقم الزيارة يجب أن يكون بين 0 و 5' });
+    if (req.files['strip'])   fs.writeFileSync(path.join(CUPS_DIR, `${n}.png`),    req.files['strip'][0].buffer);
+    if (req.files['strip2x']) fs.writeFileSync(path.join(CUPS_DIR, `${n}@2x.png`), req.files['strip2x'][0].buffer);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
