@@ -548,10 +548,10 @@ async function recordVisit(db, customer, orderNumber = '') {
     }
   }
 
-  // إعادة ضبط الدورة إذا مرّ 60 يوماً
+  // إعادة ضبط الدورة إذا مرّت 240 يوماً (8 أشهر)
   if (customer.cycle_start) {
     const daysSince = (Date.now() - new Date(customer.cycle_start).getTime()) / 86400000;
-    if (daysSince >= 60) {
+    if (daysSince >= 240) {
       await db.execute(
         'UPDATE loyalty_customers SET visits = 0, status = "normal", cycle_start = NOW() WHERE id = ?',
         [customer.id]
@@ -629,42 +629,74 @@ app.post('/visit-by-number/:number', async (req, res) => {
   }
 });
 
-// استبدال المكافأة المجانية
+// استبدال المكافأة (خصم 50% أو بوكيه مجاني) — بالجوال أو رقم البطاقة
+async function redeemReward(db, customer, rewardType = 'discount') {
+  // تحقق من مهلة 10 أيام
+  if (customer.free_visit_earned_at) {
+    const days = (Date.now() - new Date(customer.free_visit_earned_at).getTime()) / 86400000;
+    if (days > 10) {
+      await db.execute(
+        'UPDATE loyalty_customers SET status = "normal", visits = 0, cycle_start = NOW(), pass_updated_at = NOW() WHERE id = ?',
+        [customer.id]
+      );
+      const [[updated]] = await db.execute('SELECT * FROM loyalty_customers WHERE id = ?', [customer.id]);
+      await triggerAppleUpdate(db, updated);
+      updateGooglePass(updated).catch(() => {});
+      return { expired: true };
+    }
+  }
+
+  const rewardLabel = rewardType === 'bouquet' ? 'بوكيه مجاني 💐' : 'خصم 50%';
+
+  await db.execute(
+    `UPDATE loyalty_customers
+     SET status = "normal", visits = 0, cycle_start = NOW(),
+         free_visit_earned_at = NULL, pass_updated_at = NOW()
+     WHERE id = ?`,
+    [customer.id]
+  );
+
+  // سجّل في visit_logs نوع المكافأة
+  await db.execute(
+    'INSERT INTO visit_logs (customer_id, visit_number, order_number) VALUES (?, ?, ?)',
+    [customer.id, 0, `مكافأة: ${rewardLabel}`]
+  );
+
+  const [[updated]] = await db.execute('SELECT * FROM loyalty_customers WHERE id = ?', [customer.id]);
+  await triggerAppleUpdate(db, updated);
+  updateGooglePass(updated).catch(() => {});
+  return { success: true, customer: updated, rewardLabel };
+}
+
 app.post('/redeem-free/:phone', async (req, res) => {
   try {
+    const { rewardType } = req.body; // 'discount' | 'bouquet'
     const db = await getDB();
     const [[customer]] = await db.execute('SELECT * FROM loyalty_customers WHERE phone = ?', [req.params.phone]);
     if (!customer) return res.status(404).json({ error: 'العميل غير موجود' });
-    if (customer.status !== 'free_pending') return res.status(400).json({ error: 'لا يوجد خصم متاح للاستبدال' });
+    if (customer.status !== 'free_pending') return res.status(400).json({ error: 'لا يوجد مكافأة متاحة للاستبدال' });
 
-    // تحقق من مهلة 10 أيام
-    if (customer.free_visit_earned_at) {
-      const days = (Date.now() - new Date(customer.free_visit_earned_at).getTime()) / 86400000;
-      if (days > 10) {
-        await db.execute(
-          'UPDATE loyalty_customers SET status = "normal", visits = 0, cycle_start = NOW(), pass_updated_at = NOW() WHERE id = ?',
-          [customer.id]
-        );
-        const [[updated]] = await db.execute('SELECT * FROM loyalty_customers WHERE id = ?', [customer.id]);
-        await triggerAppleUpdate(db, updated);
-        updateGooglePass(updated).catch(() => {});
-        return res.status(410).json({ error: 'انتهت مهلة الاستبدال (10 أيام)، تم تصفير الزيارات' });
-      }
-    }
+    const result = await redeemReward(db, customer, rewardType);
+    if (result.expired) return res.status(410).json({ error: 'انتهت مهلة الاستبدال (10 أيام)، تم تصفير الزيارات' });
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
-    await db.execute(
-      `UPDATE loyalty_customers
-       SET status = "normal", visits = 0, cycle_start = NOW(),
-           free_visit_earned_at = NULL, pass_updated_at = NOW()
-       WHERE id = ?`,
-      [customer.id]
-    );
+// استبدال برقم البطاقة (للكاشير)
+app.post('/redeem-by-number/:serial', async (req, res) => {
+  try {
+    const { rewardType } = req.body;
+    const db = await getDB();
+    const [[customer]] = await db.execute('SELECT * FROM loyalty_customers WHERE customer_number = ?', [req.params.serial]);
+    if (!customer) return res.status(404).json({ error: 'العميل غير موجود' });
+    if (customer.status !== 'free_pending') return res.status(400).json({ error: 'لا يوجد مكافأة متاحة للاستبدال' });
 
-    const [[updated]] = await db.execute('SELECT * FROM loyalty_customers WHERE id = ?', [customer.id]);
-    await triggerAppleUpdate(db, updated);
-    updateGooglePass(updated).catch(() => {});
-
-    res.json({ success: true, customer: updated });
+    const result = await redeemReward(db, customer, rewardType);
+    if (result.expired) return res.status(410).json({ error: 'انتهت مهلة الاستبدال (10 أيام)، تم تصفير الزيارات' });
+    res.json(result);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });

@@ -243,11 +243,46 @@
 
   <!-- ── تبويب: الإشعارات ── -->
   <div class="content" id="tab-notify" style="display:none">
+
+    <!-- كتابة الرسالة -->
     <div class="notif-card">
-      <h3>📢 إشعار لكل العملاء</h3>
-      <textarea id="notif-all-msg" placeholder="اكتب رسالتك هنا..."></textarea>
-      <button class="btn btn-primary" onclick="sendNotifyAll()">إرسال للكل</button>
+      <h3>✏️ الرسالة</h3>
+      <textarea id="notif-msg-main" placeholder="اكتب رسالتك هنا..." rows="4"
+        style="width:100%;padding:13px 16px;border:1.5px solid var(--border);border-radius:12px;font-size:15px;font-family:inherit;outline:none;resize:vertical;direction:rtl;"
+        oninput="updateCharCount()"></textarea>
+      <div style="text-align:left;font-size:12px;color:var(--gray);margin-top:4px">
+        <span id="char-count">0</span> حرف
+      </div>
     </div>
+
+    <!-- تحديد المستلمين -->
+    <div class="notif-card">
+      <h3>👥 المستلمون</h3>
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+        <button class="btn btn-sm" id="seg-all"     onclick="setSeg('all')"     style="background:var(--pink);color:#fff">الكل</button>
+        <button class="btn btn-sm btn-gray" id="seg-pending"  onclick="setSeg('pending')">🎁 لديهم مكافأة</button>
+        <button class="btn btn-sm btn-gray" id="seg-apple"    onclick="setSeg('apple')">🍎 Apple Wallet</button>
+        <button class="btn btn-sm btn-gray" id="seg-custom"   onclick="setSeg('custom')">تحديد يدوي</button>
+      </div>
+
+      <!-- بحث وتحديد يدوي -->
+      <div id="custom-select-box" style="display:none;margin-bottom:14px">
+        <input class="search-input" id="notif-search" placeholder="🔍 بحث بالاسم أو الجوال" oninput="filterNotifList()" style="margin-bottom:10px;width:100%"/>
+        <div style="max-height:220px;overflow-y:auto;border:1.5px solid var(--border);border-radius:12px" id="notif-cust-list"></div>
+        <div style="margin-top:8px;font-size:13px;color:var(--gray)">
+          تم تحديد <b id="selected-count">0</b> عميل
+        </div>
+      </div>
+
+      <!-- معاينة -->
+      <div id="recipient-preview" style="font-size:13px;color:var(--gray);margin-bottom:16px">
+        سيتم الإرسال لـ <b id="recipient-num">—</b>
+      </div>
+
+      <button class="btn btn-primary" onclick="sendNotifyMain()" style="width:100%">📤 إرسال الإشعار</button>
+    </div>
+
+    <!-- سجل -->
     <div class="notif-card">
       <h3>📋 سجل الإشعارات السابقة</h3>
       <div id="notif-log">جاري التحميل...</div>
@@ -269,6 +304,26 @@
       <button class="btn btn-primary" style="flex:1" onclick="addCustomer()">إضافة</button>
       <button class="btn btn-gray" onclick="closeModal('modal-add')">إلغاء</button>
     </div>
+  </div>
+</div>
+
+<!-- ── مودال: استبدال المكافأة ── -->
+<div class="modal-bg" id="modal-redeem">
+  <div class="modal">
+    <h3>🎁 استبدال المكافأة</h3>
+    <p id="redeem-customer-name" style="color:var(--gray);margin-bottom:20px;font-size:15px;font-weight:600"></p>
+    <p style="font-size:14px;color:var(--text);margin-bottom:16px">اختر نوع المكافأة:</p>
+    <div style="display:flex;gap:12px;margin-bottom:20px">
+      <button class="btn btn-primary" style="flex:1;flex-direction:column;padding:18px;gap:6px;font-size:15px"
+        onclick="confirmRedeem('discount')">
+        💰<br/>خصم 50%<br/><span style="font-size:12px;font-weight:400;opacity:.85">على الفاتورة</span>
+      </button>
+      <button class="btn" style="flex:1;flex-direction:column;padding:18px;gap:6px;font-size:15px;background:#e91e8c;color:#fff"
+        onclick="confirmRedeem('bouquet')">
+        💐<br/>بوكيه مجاني<br/><span style="font-size:12px;font-weight:400;opacity:.85">بقيمة 35 ريال</span>
+      </button>
+    </div>
+    <button class="btn btn-gray btn-full" onclick="closeModal('modal-redeem')">إلغاء</button>
   </div>
 </div>
 
@@ -374,7 +429,7 @@ function renderTable(list) {
       <td>
         <div class="actions-cell">
           <button class="btn btn-success btn-sm" onclick="quickVisit('${c.customer_number}')">+ زيارة</button>
-          ${c.status==='free_pending'&&!c.revoked?`<button class="btn btn-warn btn-sm" onclick="redeemFree('${c.phone}')">🎁 استبدال</button>`:''}
+          ${c.status==='free_pending'&&!c.revoked?`<button class="btn btn-warn btn-sm" onclick="openRedeem('${c.customer_number}','${c.name}')">🎁 استبدال</button>`:''}
           <button class="btn btn-gray btn-sm" onclick="openNotify('${c.customer_number}','${c.name}')">🔔</button>
           ${c.revoked
             ? `<button class="btn btn-success btn-sm" onclick="unrevoke('${c.customer_number}')">فك</button>`
@@ -447,12 +502,25 @@ async function quickVisit(serial) {
 }
 
 // ── استبدال مكافأة ─────────────────────────────────────────────
-async function redeemFree(phone) {
-  if (!confirm('تأكيد استبدال المكافأة؟')) return;
-  const res  = await fetch(`${API}/redeem-free/${phone}`, { method:'POST' });
+function openRedeem(serial, name) {
+  activeSerial = serial;
+  document.getElementById('redeem-customer-name').textContent = name;
+  document.getElementById('modal-redeem').classList.add('open');
+}
+
+async function confirmRedeem(rewardType) {
+  closeModal('modal-redeem');
+  const res  = await fetch(`${API}/redeem-by-number/${activeSerial}`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ rewardType })
+  });
   const data = await res.json();
-  toast(res.ok ? '🎁 تم الاستبدال بنجاح' : '❌ ' + data.error);
-  loadCustomers();
+  if (res.ok) {
+    toast(`🎁 تم الاستبدال: ${data.rewardLabel}`);
+    loadCustomers();
+  } else {
+    toast('❌ ' + (data.error || 'خطأ'));
+  }
 }
 
 // ── إضافة عميل ─────────────────────────────────────────────────
@@ -475,37 +543,117 @@ async function addCustomer() {
   } else { toast('❌ ' + data.error); }
 }
 
-// ── إشعار فردي ─────────────────────────────────────────────────
+// ── إشعار فردي (من جدول العملاء) ──────────────────────────────
 function openNotify(serial, name) {
-  activeSerial = serial;
-  document.getElementById('notify-customer-name').textContent = name;
-  document.getElementById('notify-msg').value = '';
-  document.getElementById('modal-notify').classList.add('open');
+  // ننتقل لتبويب الإشعارات ونضع الرسالة فارغة + نحدد العميل
+  showTab('notify');
+  setSeg('custom');
+  // نحدد العميل في القائمة
+  setTimeout(() => {
+    const cb = document.getElementById(`chk-${serial}`);
+    if (cb) { cb.checked = true; updateSelectedCount(); }
+    updateRecipientPreview();
+  }, 100);
 }
 
-async function sendNotify() {
-  const msg = document.getElementById('notify-msg').value.trim();
-  if (!msg) return;
-  const res = await fetch(`${API}/notify/${activeSerial}`, {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({message:msg})
+// ── منطق الإشعارات الجديد ──────────────────────────────────────
+let currentSeg = 'all';
+let selectedSerials = new Set();
+
+function updateCharCount() {
+  const v = document.getElementById('notif-msg-main').value.length;
+  document.getElementById('char-count').textContent = v;
+}
+
+function setSeg(seg) {
+  currentSeg = seg;
+  ['all','pending','apple','custom'].forEach(s => {
+    const el = document.getElementById(`seg-${s}`);
+    el.style.background = s===seg ? 'var(--pink)' : '';
+    el.style.color      = s===seg ? '#fff' : '';
+    if (s!==seg) { el.classList.add('btn-gray'); el.classList.remove('btn-primary'); }
+    else         { el.classList.remove('btn-gray'); }
   });
-  toast(res.ok ? '✅ تم إرسال الإشعار' : '❌ خطأ');
-  closeModal('modal-notify');
+  document.getElementById('custom-select-box').style.display = seg==='custom' ? '' : 'none';
+  if (seg==='custom') renderNotifList(customers);
+  selectedSerials.clear();
+  updateRecipientPreview();
 }
 
-// ── إشعار للكل ─────────────────────────────────────────────────
-async function sendNotifyAll() {
-  const msg = document.getElementById('notif-all-msg').value.trim();
+function getSegmentCount() {
+  if (currentSeg==='all')     return customers.filter(c=>!c.revoked).length;
+  if (currentSeg==='pending') return customers.filter(c=>c.status==='free_pending'&&!c.revoked).length;
+  if (currentSeg==='apple')   return customers.filter(c=>(c.has_apple||c.had_apple)&&!c.revoked).length;
+  if (currentSeg==='custom')  return selectedSerials.size;
+  return 0;
+}
+
+function updateRecipientPreview() {
+  const n = getSegmentCount();
+  document.getElementById('recipient-num').textContent = `${n} عميل`;
+}
+
+function renderNotifList(list) {
+  const el = document.getElementById('notif-cust-list');
+  el.innerHTML = list.filter(c=>!c.revoked).map(c => `
+    <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border)">
+      <input type="checkbox" id="chk-${c.customer_number}" value="${c.customer_number}"
+        onchange="toggleSerial('${c.customer_number}',this.checked)"
+        ${selectedSerials.has(String(c.customer_number))?'checked':''}/>
+      <span style="flex:1"><b>${c.name}</b> <span style="color:var(--gray);font-size:12px">${c.phone}</span></span>
+      <span style="font-size:12px;color:var(--gray)">${c.visits%5}/5</span>
+    </label>
+  `).join('');
+}
+
+function filterNotifList() {
+  const q = document.getElementById('notif-search').value.trim().toLowerCase();
+  const filtered = q ? customers.filter(c => c.name.toLowerCase().includes(q)||c.phone.includes(q)) : customers;
+  renderNotifList(filtered);
+}
+
+function toggleSerial(serial, checked) {
+  if (checked) selectedSerials.add(String(serial));
+  else         selectedSerials.delete(String(serial));
+  updateSelectedCount();
+  updateRecipientPreview();
+}
+
+function updateSelectedCount() {
+  document.getElementById('selected-count').textContent = selectedSerials.size;
+  updateRecipientPreview();
+}
+
+async function sendNotifyMain() {
+  const msg = document.getElementById('notif-msg-main').value.trim();
   if (!msg) { toast('اكتب الرسالة أولاً'); return; }
-  if (!confirm(`إرسال للكل: "${msg}"؟`)) return;
-  const res  = await fetch(`${API}/notify-all`, {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({message:msg})
-  });
-  const data = await res.json();
+  const n = getSegmentCount();
+  if (!n) { toast('لم يتم تحديد أي عميل'); return; }
+  if (!confirm(`إرسال الإشعار لـ ${n} عميل؟`)) return;
+
+  let res, data;
+  if (currentSeg === 'all') {
+    res  = await fetch(`${API}/notify-all`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:msg}) });
+    data = await res.json();
+  } else if (currentSeg === 'custom') {
+    const serials = [...selectedSerials].map(Number);
+    res  = await fetch(`${API}/notify-batch`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:msg,serials}) });
+    data = await res.json();
+  } else {
+    // pending أو apple — نرسل batch
+    let filtered;
+    if (currentSeg==='pending') filtered = customers.filter(c=>c.status==='free_pending'&&!c.revoked);
+    else                        filtered = customers.filter(c=>(c.has_apple||c.had_apple)&&!c.revoked);
+    const serials = filtered.map(c=>c.customer_number);
+    res  = await fetch(`${API}/notify-batch`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:msg,serials}) });
+    data = await res.json();
+  }
+
   toast(res.ok ? `✅ أُرسل لـ ${data.sentCount} عميل` : '❌ خطأ');
-  document.getElementById('notif-all-msg').value = '';
+  document.getElementById('notif-msg-main').value = '';
+  document.getElementById('char-count').textContent = '0';
+  selectedSerials.clear();
+  updateRecipientPreview();
   loadNotifLog();
 }
 
