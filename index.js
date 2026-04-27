@@ -170,7 +170,7 @@ async function makePass(customer) {
   }
 
   pass.auxiliaryFields.push(
-    { key: 'customerName', label: 'العميلة', value: customer.name, textAlignment: 'PKTextAlignmentRight' }
+    { key: 'customerName', label: 'العميل', value: customer.name, textAlignment: 'PKTextAlignmentRight' }
   );
 
   pass.backFields.push(
