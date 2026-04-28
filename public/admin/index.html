@@ -372,7 +372,10 @@
             style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:11px;font-size:14px;font-family:inherit;outline:none"/>
         </div>
       </div>
-      <button class="btn btn-primary" style="margin-top:16px;width:100%" onclick="saveSettings()">💾 حفظ الإعدادات</button>
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button class="btn btn-primary" style="flex:1" onclick="saveSettings()">💾 حفظ الإعدادات</button>
+        <button class="btn btn-success" style="flex:1" onclick="saveAndPushAll()">💾 حفظ + تحديث بطاقات الكل</button>
+      </div>
     </div>
 
     <!-- الصور -->
@@ -904,7 +907,18 @@ async function saveSettings() {
   const res = await fetch(`${API}/admin/settings`, {
     method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
   });
-  toast(res.ok ? '✅ تم حفظ الإعدادات' : '❌ خطأ في الحفظ');
+  if (!res.ok) { toast('❌ خطأ في الحفظ'); return false; }
+  toast('✅ تم حفظ الإعدادات');
+  return true;
+}
+
+async function saveAndPushAll() {
+  const saved = await saveSettings();
+  if (!saved) return;
+  toast('⏳ جاري تحديث بطاقات العملاء...');
+  const res  = await fetch(`${API}/push-all`, { method:'POST' });
+  const data = await res.json();
+  toast(res.ok ? `✅ تم تحديث ${data.pushed} بطاقة` : '❌ خطأ في الإرسال');
 }
 
 function setStripMode(mode, save = false) {

@@ -98,6 +98,24 @@ const upload = multer({
   },
 });
 
+// ─── صور البطاقة من DB ────────────────────────────────────────────────────────
+async function getStripFromDB(slot) {
+  // slot: 'main' | '0'..'5'
+  const db = await getDB();
+  const [[row]] = await db.execute('SELECT image_data, image_data_2x FROM pass_images WHERE slot = ?', [slot]);
+  return row || null;
+}
+
+async function saveStripToDB(slot, buf1x, buf2x) {
+  const db = await getDB();
+  await db.execute(
+    `INSERT INTO pass_images (slot, image_data, image_data_2x)
+     VALUES (?, ?, ?)
+     ON DUPLICATE KEY UPDATE image_data = VALUES(image_data), image_data_2x = VALUES(image_data_2x), updated_at = NOW()`,
+    [slot, buf1x, buf2x || buf1x]
+  );
+}
+
 // ─── الشهادات ────────────────────────────────────────────────────────────────
 function getCerts() {
   return {
@@ -183,16 +201,28 @@ async function makePass(customer) {
     { key: 'notification', label: 'رسالة',           value: notifValue, changeMessage: '%@' }
   );
 
-  // 6. صورة الشريط — single أو per-visit
+  // 6. صورة الشريط — من DB أولاً، ثم الملف كـ fallback
   if (S.stripMode === 'per-visit') {
     const n = Math.min(customer.visits % 5, 5);
-    const p1 = path.join(CUPS_DIR, `${n}.png`);
-    const p2 = path.join(CUPS_DIR, `${n}@2x.png`);
-    pass.addBuffer('strip.png',    fs.existsSync(p1) ? fs.readFileSync(p1) : fs.readFileSync(path.join(PASS_MODEL, 'strip.png')));
-    pass.addBuffer('strip@2x.png', fs.existsSync(p2) ? fs.readFileSync(p2) : fs.readFileSync(path.join(PASS_MODEL, 'strip@2x.png')));
+    const dbRow = await getStripFromDB(String(n));
+    if (dbRow) {
+      pass.addBuffer('strip.png',    dbRow.image_data);
+      pass.addBuffer('strip@2x.png', dbRow.image_data_2x || dbRow.image_data);
+    } else {
+      const p1 = path.join(CUPS_DIR, `${n}.png`);
+      const p2 = path.join(CUPS_DIR, `${n}@2x.png`);
+      pass.addBuffer('strip.png',    fs.existsSync(p1) ? fs.readFileSync(p1) : fs.readFileSync(path.join(PASS_MODEL, 'strip.png')));
+      pass.addBuffer('strip@2x.png', fs.existsSync(p2) ? fs.readFileSync(p2) : fs.readFileSync(path.join(PASS_MODEL, 'strip@2x.png')));
+    }
   } else {
-    pass.addBuffer('strip.png',    fs.readFileSync(path.join(PASS_MODEL, 'strip.png')));
-    pass.addBuffer('strip@2x.png', fs.readFileSync(path.join(PASS_MODEL, 'strip@2x.png')));
+    const dbRow = await getStripFromDB('main');
+    if (dbRow) {
+      pass.addBuffer('strip.png',    dbRow.image_data);
+      pass.addBuffer('strip@2x.png', dbRow.image_data_2x || dbRow.image_data);
+    } else {
+      pass.addBuffer('strip.png',    fs.readFileSync(path.join(PASS_MODEL, 'strip.png')));
+      pass.addBuffer('strip@2x.png', fs.readFileSync(path.join(PASS_MODEL, 'strip@2x.png')));
+    }
   }
 
   return pass.getAsBuffer();
@@ -1119,28 +1149,32 @@ app.post('/admin/settings', (req, res) => {
   }
 });
 
-// رفع صورة strip عامة
+// رفع صورة strip عامة → تُحفظ في DB
 app.post('/admin/upload-strip', upload.fields([
   { name: 'strip', maxCount: 1 },
   { name: 'strip2x', maxCount: 1 },
-]), (req, res) => {
+]), async (req, res) => {
   try {
-    if (req.files['strip'])   fs.writeFileSync(path.join(PASS_MODEL, 'strip.png'),    req.files['strip'][0].buffer);
-    if (req.files['strip2x']) fs.writeFileSync(path.join(PASS_MODEL, 'strip@2x.png'), req.files['strip2x'][0].buffer);
+    if (!req.files['strip']) return res.status(400).json({ error: 'الصورة مطلوبة' });
+    const buf1x = req.files['strip'][0].buffer;
+    const buf2x = req.files['strip2x'] ? req.files['strip2x'][0].buffer : buf1x;
+    await saveStripToDB('main', buf1x, buf2x);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// رفع صورة لزيارة محددة (0-5)
+// رفع صورة لزيارة محددة (0-5) → تُحفظ في DB
 app.post('/admin/upload-strip/:n', upload.fields([
   { name: 'strip', maxCount: 1 },
   { name: 'strip2x', maxCount: 1 },
-]), (req, res) => {
+]), async (req, res) => {
   try {
     const n = parseInt(req.params.n);
     if (isNaN(n) || n < 0 || n > 5) return res.status(400).json({ error: 'رقم الزيارة يجب أن يكون بين 0 و 5' });
-    if (req.files['strip'])   fs.writeFileSync(path.join(CUPS_DIR, `${n}.png`),    req.files['strip'][0].buffer);
-    if (req.files['strip2x']) fs.writeFileSync(path.join(CUPS_DIR, `${n}@2x.png`), req.files['strip2x'][0].buffer);
+    const buf1x = req.files['strip'] ? req.files['strip'][0].buffer : null;
+    const buf2x = req.files['strip2x'] ? req.files['strip2x'][0].buffer : buf1x;
+    if (!buf1x) return res.status(400).json({ error: 'الصورة مطلوبة' });
+    await saveStripToDB(String(n), buf1x, buf2x);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
