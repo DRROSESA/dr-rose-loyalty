@@ -6,6 +6,7 @@
   <title>لوحة تحكم — د. روز للورد</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"/>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     :root{
@@ -155,6 +156,33 @@
     }
     #toast.show{opacity:1}
 
+    /* ── كاميرا QR ── */
+    #qr-reader{
+      width:100%;max-width:350px;margin:16px auto;border-radius:16px;overflow:hidden;
+    }
+    #qr-reader video{border-radius:16px}
+    .cam-toggle{
+      display:flex;gap:10px;margin-bottom:12px;align-items:center;
+    }
+
+    /* ── مودال سجل الزيارات ── */
+    .visit-log-item{
+      display:flex;justify-content:space-between;align-items:center;
+      padding:12px 14px;border-bottom:1px solid var(--border);
+    }
+    .visit-log-item:last-child{border:none}
+    .visit-log-num{
+      background:var(--pink-light);color:var(--pink-dark);
+      width:32px;height:32px;border-radius:50%;display:flex;
+      align-items:center;justify-content:center;font-weight:800;font-size:13px;
+    }
+    .visit-log-details{flex:1;margin-right:12px}
+    .visit-log-date{font-size:13px;font-weight:600;color:var(--text)}
+    .visit-log-order{font-size:12px;color:var(--gray);margin-top:2px}
+    .visit-log-type{font-size:11px;padding:3px 8px;border-radius:12px;font-weight:700}
+    .visit-log-type.visit{background:#e8f5e9;color:#2e7d32}
+    .visit-log-type.redeem{background:#fff3e0;color:#e65100}
+
     @media(max-width:600px){
       .content{padding:14px}
       .tabs{padding:0 10px}
@@ -199,6 +227,11 @@
   <div class="content" id="tab-scan">
     <div id="scan-box">
       <h3>📷 تسجيل زيارة</h3>
+      <div class="cam-toggle">
+        <button class="btn btn-primary btn-sm" id="cam-btn" onclick="toggleCamera()">📷 مسح بالكاميرا</button>
+        <span id="cam-status" style="font-size:12px;color:var(--gray)"></span>
+      </div>
+      <div id="qr-reader"></div>
       <div class="search-row">
         <input class="search-input" id="visit-input" placeholder="رقم البطاقة أو الجوال" inputmode="numeric"
                onkeydown="if(event.key==='Enter')recordVisit()"/>
@@ -479,6 +512,30 @@
   </div>
 </div>
 
+<!-- ── مودال: سجل الزيارات ── -->
+<div class="modal-bg" id="modal-visits">
+  <div class="modal" style="max-width:520px">
+    <h3>📋 سجل الزيارات</h3>
+    <p id="visits-customer-name" style="color:var(--gray);margin-bottom:14px;font-size:15px;font-weight:600"></p>
+    <div id="visits-summary" style="display:flex;gap:12px;margin-bottom:16px">
+      <div style="background:var(--pink-light);padding:10px 16px;border-radius:12px;text-align:center;flex:1">
+        <div style="font-size:22px;font-weight:800;color:var(--pink)" id="vlog-total">0</div>
+        <div style="font-size:12px;color:var(--gray)">إجمالي الزيارات</div>
+      </div>
+      <div style="background:#e8f5e9;padding:10px 16px;border-radius:12px;text-align:center;flex:1">
+        <div style="font-size:22px;font-weight:800;color:#2e7d32" id="vlog-rewards">0</div>
+        <div style="font-size:12px;color:var(--gray)">مكافآت مستبدلة</div>
+      </div>
+    </div>
+    <div id="visits-list" style="max-height:400px;overflow-y:auto;border:1px solid var(--border);border-radius:12px">
+      <p style="padding:20px;text-align:center;color:#aaa">جاري التحميل...</p>
+    </div>
+    <div class="modal-btns" style="margin-top:16px">
+      <button class="btn btn-gray btn-full" onclick="closeModal('modal-visits')">إغلاق</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -555,6 +612,7 @@ function renderTable(list) {
         <div class="actions-cell">
           <button class="btn btn-success btn-sm" onclick="quickVisit('${c.customer_number}')">+ زيارة</button>
           ${c.status==='free_pending'&&!c.revoked?`<button class="btn btn-warn btn-sm" onclick="openRedeem('${c.customer_number}','${c.name}')">🎁 استبدال</button>`:''}
+          <button class="btn btn-gray btn-sm" onclick="openVisitLog('${c.customer_number}','${c.name}')">📋</button>
           <button class="btn btn-gray btn-sm" onclick="openNotify('${c.customer_number}','${c.name}')">🔔</button>
           ${c.revoked
             ? `<button class="btn btn-success btn-sm" onclick="unrevoke('${c.customer_number}')">فك</button>`
@@ -1011,6 +1069,109 @@ if (sessionStorage.getItem('admin')) {
 }
 
 document.getElementById('pwd').addEventListener('keydown', e => { if(e.key==='Enter') login(); });
+
+// ══════════════════════════════════════════════════════════════
+// ── ماسح QR بالكاميرا ────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+let qrScanner = null;
+let cameraOn = false;
+
+function toggleCamera() {
+  if (cameraOn) {
+    stopCamera();
+  } else {
+    startCamera();
+  }
+}
+
+function startCamera() {
+  const btn = document.getElementById('cam-btn');
+  const status = document.getElementById('cam-status');
+
+  qrScanner = new Html5Qrcode('qr-reader');
+  qrScanner.start(
+    { facingMode: 'environment' },
+    { fps: 10, qrbox: { width: 250, height: 250 } },
+    onQrSuccess,
+    () => {}
+  ).then(() => {
+    cameraOn = true;
+    btn.textContent = '⏹️ إيقاف الكاميرا';
+    btn.className = 'btn btn-warn btn-sm';
+    status.textContent = 'الكاميرا تعمل...';
+  }).catch(err => {
+    status.textContent = '❌ لا يمكن تشغيل الكاميرا';
+    toast('❌ تعذر الوصول للكاميرا');
+  });
+}
+
+function stopCamera() {
+  if (qrScanner) {
+    qrScanner.stop().then(() => {
+      qrScanner.clear();
+      cameraOn = false;
+      const btn = document.getElementById('cam-btn');
+      btn.textContent = '📷 مسح بالكاميرا';
+      btn.className = 'btn btn-primary btn-sm';
+      document.getElementById('cam-status').textContent = '';
+    });
+  }
+}
+
+function onQrSuccess(decodedText) {
+  // ضع القيمة المقروءة في حقل الإدخال
+  document.getElementById('visit-input').value = decodedText.trim();
+  stopCamera();
+  toast('✅ تم قراءة الكود: ' + decodedText.trim());
+  // سجّل الزيارة تلقائياً
+  recordVisit();
+}
+
+// ══════════════════════════════════════════════════════════════
+// ── سجل الزيارات التفصيلي ────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+async function openVisitLog(serial, name) {
+  document.getElementById('visits-customer-name').textContent = name + ' — بطاقة #' + serial;
+  document.getElementById('visits-list').innerHTML = '<p style="padding:20px;text-align:center;color:#aaa">جاري التحميل...</p>';
+  document.getElementById('modal-visits').classList.add('open');
+
+  try {
+    const res = await fetch(`${API}/customer-info-by-number/${serial}`);
+    const data = await res.json();
+    if (!res.ok) { toast('❌ ' + (data.error||'خطأ')); return; }
+
+    const logs = data.visit_logs || [];
+    const totalVisits = logs.filter(v => !v.order_number || !v.order_number.startsWith('🎁')).length;
+    const totalRedeems = logs.filter(v => v.order_number && v.order_number.startsWith('🎁')).length;
+
+    document.getElementById('vlog-total').textContent = totalVisits;
+    document.getElementById('vlog-rewards').textContent = totalRedeems;
+
+    if (!logs.length) {
+      document.getElementById('visits-list').innerHTML = '<p style="padding:30px;text-align:center;color:#aaa">لا توجد زيارات مسجلة</p>';
+      return;
+    }
+
+    document.getElementById('visits-list').innerHTML = logs.map(v => {
+      const isRedeem = v.order_number && v.order_number.startsWith('🎁');
+      const date = new Date(v.visited_at).toLocaleString('ar-SA', {
+        year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'
+      });
+      return `
+        <div class="visit-log-item">
+          <div class="visit-log-num">${v.visit_number || '—'}</div>
+          <div class="visit-log-details">
+            <div class="visit-log-date">${date}</div>
+            <div class="visit-log-order">${v.order_number ? (isRedeem ? v.order_number : 'طلب: ' + v.order_number) : 'بدون رقم طلب'}</div>
+          </div>
+          <span class="visit-log-type ${isRedeem?'redeem':'visit'}">${isRedeem?'استبدال':'زيارة'}</span>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    document.getElementById('visits-list').innerHTML = '<p style="padding:20px;text-align:center;color:#c62828">❌ خطأ في التحميل</p>';
+  }
+}
 </script>
 </body>
 </html>
