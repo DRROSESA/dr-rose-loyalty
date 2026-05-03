@@ -727,12 +727,16 @@ async function redeemReward(db, customer, rewardType = 'discount') {
 
   const rewardLabel = rewardType === 'bouquet' ? 'بوكيه مجاني 💐' : 'خصم 50%';
 
+  // الزيارات الزائدة بعد آخر مضاعف لـ 5 تُحفظ
+  const remainingVisits = customer.visits % 5;
+  const newStatus = remainingVisits === 0 ? 'normal' : 'normal';
+
   await db.execute(
     `UPDATE loyalty_customers
-     SET status = "normal", visits = 0, cycle_start = NOW(),
+     SET status = "normal", visits = ?, cycle_start = NOW(),
          free_visit_earned_at = NULL, pass_updated_at = NOW()
      WHERE id = ?`,
-    [customer.id]
+    [remainingVisits, customer.id]
   );
 
   // سجّل في visit_logs نوع المكافأة
