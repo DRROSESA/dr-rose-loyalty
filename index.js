@@ -39,7 +39,7 @@ const CONFIG = {
   },
 
   // Admin
-  adminPassword: 'DrRose@Admin2024',
+  adminPassword: ['DrRose@Admin2024', 'drrose@2026'],
 
   // رابط السيرفر
   serverURL: 'https://dr-rose-loyalty-production.up.railway.app',
@@ -1123,7 +1123,7 @@ app.get('/banner.png', (req, res) => {
 
 app.post('/auth', (req, res) => {
   const { password } = req.body;
-  if (password === CONFIG.adminPassword) {
+  if (CONFIG.adminPassword.includes(password)) {
     res.json({ success: true });
   } else {
     res.status(401).json({ success: false, error: 'كلمة المرور غير صحيحة' });

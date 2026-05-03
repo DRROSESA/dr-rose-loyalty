@@ -265,6 +265,7 @@
             <th>الجوال</th>
             <th>المدينة</th>
             <th>الزيارات</th>
+            <th>المكافآت</th>
             <th>الحالة</th>
             <th>Apple</th>
             <th>إجراءات</th>
@@ -552,7 +553,7 @@ async function login() {
   });
   const data = await res.json();
   if (data.success) {
-    sessionStorage.setItem('admin', '1');
+    localStorage.setItem('admin', '1');
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('admin-screen').style.display = 'block';
     loadCustomers();
@@ -563,7 +564,7 @@ async function login() {
 }
 
 function logout() {
-  sessionStorage.removeItem('admin');
+  localStorage.removeItem('admin');
   location.reload();
 }
 
@@ -596,7 +597,7 @@ function updateStats(list) {
 
 function renderTable(list) {
   const tbody = document.getElementById('cust-table');
-  if (!list.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:#aaa">لا يوجد عملاء</td></tr>'; return; }
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:#aaa">لا يوجد عملاء</td></tr>'; return; }
   tbody.innerHTML = list.map(c => `
     <tr>
       <td><b>${c.customer_number}</b></td>
@@ -604,6 +605,7 @@ function renderTable(list) {
       <td style="direction:ltr">${c.phone}</td>
       <td>${c.city||'—'}</td>
       <td>${c.visits} ${c.visits%5>0?'('+c.visits%5+'/5)':''}</td>
+      <td>${c.free_visits||0}</td>
       <td><span class="badge badge-${c.revoked?'revoked':c.status==='free_pending'?'pending':'normal'}">
         ${c.revoked?'موقوفة':c.status==='free_pending'?'🎁 مكافأة':'عادي'}
       </span></td>
@@ -1061,7 +1063,7 @@ function toast(msg) {
 }
 
 // تحقق من الجلسة
-if (sessionStorage.getItem('admin')) {
+if (localStorage.getItem('admin')) {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('admin-screen').style.display = 'block';
   loadCustomers();
