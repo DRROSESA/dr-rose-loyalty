@@ -55,6 +55,8 @@ async function getDB() {
       waitForConnections: true,
       connectionLimit: 10,
     });
+    // migration: إضافة عمود تاريخ الميلاد
+    pool.execute(`ALTER TABLE loyalty_customers ADD COLUMN IF NOT EXISTS birth_date DATE NULL`).catch(() => {});
   }
   return pool;
 }
@@ -81,6 +83,7 @@ function loadPassSettings() {
     description:      'بطاقة ولاء د. روز للورد',
     rewardText:       'خصم 50% على فاتورتك أو بوكيه مجاني 💐 بعد كل 5 زيارات',
     stripMode:        'single',   // 'single' = صورة واحدة | 'per-visit' = لكل زيارة
+    locations:        [],         // [{ latitude, longitude, relevantText }]
   };
 }
 
@@ -148,6 +151,7 @@ async function makePass(customer) {
   passJson.logoText        = S.logoText;
   passJson.organizationName = S.organizationName;
   passJson.description     = S.description;
+  passJson.locations       = (S.locations && S.locations.length) ? S.locations : [];
   fs.writeFileSync(PASS_JSON, JSON.stringify(passJson, null, 2));
 
   // 2. حساب الزيارات
@@ -230,8 +234,10 @@ async function makePass(customer) {
 
 // ─── بطاقة موقوفة ────────────────────────────────────────────────────────────
 async function makeRevokedPass(customer) {
+  const S = loadPassSettings();
   const passJson = JSON.parse(fs.readFileSync(PASS_JSON, 'utf8'));
   passJson.serialNumber = String(customer.customer_number);
+  passJson.locations = (S.locations && S.locations.length) ? S.locations : [];
   fs.writeFileSync(PASS_JSON, JSON.stringify(passJson, null, 2));
 
   const pass = await PKPass.from(
@@ -542,7 +548,7 @@ app.get('/customers', async (req, res) => {
 // تسجيل عميل جديد
 app.post('/customer', async (req, res) => {
   try {
-    const { name, phone, city } = req.body;
+    const { name, phone, city, birth_date } = req.body;
     if (!name || !phone) return res.status(400).json({ error: 'الاسم والجوال مطلوبان' });
 
     const db = await getDB();
@@ -556,8 +562,8 @@ app.post('/customer', async (req, res) => {
     const customerNumber = (maxRow.mx || 9999) + 1;
 
     await db.execute(
-      'INSERT INTO loyalty_customers (customer_number, name, phone, city, visits, free_visits, status, cycle_start) VALUES (?, ?, ?, ?, 0, 0, "normal", NOW())',
-      [customerNumber, name, phone, city || '']
+      'INSERT INTO loyalty_customers (customer_number, name, phone, city, birth_date, visits, free_visits, status, cycle_start) VALUES (?, ?, ?, ?, ?, 0, 0, "normal", NOW())',
+      [customerNumber, name, phone, city || '', birth_date || null]
     );
 
     const [[customer]] = await db.execute('SELECT * FROM loyalty_customers WHERE phone = ?', [phone]);
@@ -1148,6 +1154,24 @@ app.post('/admin/settings', (req, res) => {
     allowed.forEach(k => { if (req.body[k] !== undefined) updated[k] = req.body[k]; });
     savePassSettings(updated);
     res.json({ success: true, settings: updated });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// حفظ مواقع المحلات
+app.post('/admin/locations', (req, res) => {
+  try {
+    const { locations } = req.body;
+    if (!Array.isArray(locations)) return res.status(400).json({ error: 'locations يجب أن يكون مصفوفة' });
+    const current = loadPassSettings();
+    current.locations = locations.map(l => ({
+      latitude:     parseFloat(l.latitude),
+      longitude:    parseFloat(l.longitude),
+      relevantText: l.relevantText || 'أنت قريب من المحل',
+    })).filter(l => !isNaN(l.latitude) && !isNaN(l.longitude));
+    savePassSettings(current);
+    res.json({ success: true, locations: current.locations });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
