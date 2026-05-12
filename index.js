@@ -55,11 +55,28 @@ async function getDB() {
       waitForConnections: true,
       connectionLimit: 10,
     });
-    // migration: إضافة عمود تاريخ الميلاد
+    // migrations
     pool.execute(`ALTER TABLE loyalty_customers ADD COLUMN IF NOT EXISTS birth_date DATE NULL`).catch(() => {});
+    pool.execute(`CREATE TABLE IF NOT EXISTS pass_settings (
+      id INT PRIMARY KEY DEFAULT 1,
+      settings_json LONGTEXT NOT NULL
+    )`).catch(() => {});
   }
   return pool;
 }
+
+// ─── إعدادات البطاقة من DB ───────────────────────────────────────────────────
+const DEFAULT_SETTINGS = {
+  backgroundColor:  'rgb(250,245,248)',
+  foregroundColor:  'rgb(70,35,55)',
+  labelColor:       'rgb(180,120,150)',
+  logoText:         'DR ROSE',
+  organizationName: 'Dr Rose',
+  description:      'بطاقة ولاء د. روز للورد',
+  rewardText:       'خصم 50% على فاتورتك أو بوكيه مجاني 💐 بعد كل 5 زيارات',
+  stripMode:        'single',
+  locations:        [],
+};
 
 // ─── مسارات الملفات ──────────────────────────────────────────────────────────
 const PASS_MODEL  = path.join(__dirname, 'pass.pass');
@@ -70,25 +87,37 @@ const APNS_KEY    = path.join(CERTS_DIR, `AuthKey_${CONFIG.apnsKeyId}.p8`);
 const SETTINGS_FILE = path.join(__dirname, 'pass-settings.json');
 
 // ─── إعدادات البطاقة (قابلة للتعديل من لوحة الأدمن) ─────────────────────────
-function loadPassSettings() {
-  if (fs.existsSync(SETTINGS_FILE)) {
-    try { return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')); } catch {}
-  }
-  return {
-    backgroundColor:  'rgb(250,245,248)',
-    foregroundColor:  'rgb(70,35,55)',
-    labelColor:       'rgb(180,120,150)',
-    logoText:         'DR ROSE',
-    organizationName: 'Dr Rose',
-    description:      'بطاقة ولاء د. روز للورد',
-    rewardText:       'خصم 50% على فاتورتك أو بوكيه مجاني 💐 بعد كل 5 زيارات',
-    stripMode:        'single',   // 'single' = صورة واحدة | 'per-visit' = لكل زيارة
-    locations:        [],         // [{ latitude, longitude, relevantText }]
-  };
+let settingsCache = null;
+
+async function loadPassSettings() {
+  if (settingsCache) return settingsCache;
+  try {
+    const db = await getDB();
+    const [[row]] = await db.execute('SELECT settings_json FROM pass_settings WHERE id = 1');
+    if (row) {
+      settingsCache = { ...DEFAULT_SETTINGS, ...JSON.parse(row.settings_json) };
+      return settingsCache;
+    }
+    // إذا في ملف قديم، استورده للـ DB
+    if (fs.existsSync(SETTINGS_FILE)) {
+      const fromFile = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+      await savePassSettings(fromFile);
+      return settingsCache;
+    }
+  } catch(e) { console.error('loadPassSettings error:', e.message); }
+  return { ...DEFAULT_SETTINGS };
 }
 
-function savePassSettings(s) {
-  fs.writeFileSync(SETTINGS_FILE, JSON.stringify(s, null, 2));
+async function savePassSettings(s) {
+  settingsCache = { ...DEFAULT_SETTINGS, ...s };
+  try {
+    const db = await getDB();
+    await db.execute(
+      `INSERT INTO pass_settings (id, settings_json) VALUES (1, ?)
+       ON DUPLICATE KEY UPDATE settings_json = VALUES(settings_json)`,
+      [JSON.stringify(settingsCache)]
+    );
+  } catch(e) { console.error('savePassSettings error:', e.message); }
 }
 
 // ─── multer لرفع الصور ────────────────────────────────────────────────────────
@@ -140,7 +169,7 @@ function getStripFiles(visits) {
 
 // ─── بناء بطاقة Apple Wallet ────────────────────────────────────────────────
 async function makePass(customer) {
-  const S = loadPassSettings();
+  const S = await loadPassSettings();
 
   // 1. تحديث pass.json بالإعدادات الحالية
   const passJson = JSON.parse(fs.readFileSync(PASS_JSON, 'utf8'));
@@ -234,7 +263,7 @@ async function makePass(customer) {
 
 // ─── بطاقة موقوفة ────────────────────────────────────────────────────────────
 async function makeRevokedPass(customer) {
-  const S = loadPassSettings();
+  const S = await loadPassSettings();
   const passJson = JSON.parse(fs.readFileSync(PASS_JSON, 'utf8'));
   passJson.serialNumber = String(customer.customer_number);
   passJson.locations = (S.locations && S.locations.length) ? S.locations : [];
@@ -1141,18 +1170,18 @@ app.post('/auth', (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // قراءة الإعدادات الحالية
-app.get('/admin/settings', (req, res) => {
-  res.json(loadPassSettings());
+app.get('/admin/settings', async (req, res) => {
+  res.json(await loadPassSettings());
 });
 
 // حفظ الإعدادات النصية والألوان
-app.post('/admin/settings', (req, res) => {
+app.post('/admin/settings', async (req, res) => {
   try {
-    const current = loadPassSettings();
+    const current = await loadPassSettings();
     const allowed = ['backgroundColor','foregroundColor','labelColor','logoText','organizationName','description','rewardText','stripMode'];
     const updated = { ...current };
     allowed.forEach(k => { if (req.body[k] !== undefined) updated[k] = req.body[k]; });
-    savePassSettings(updated);
+    await savePassSettings(updated);
     res.json({ success: true, settings: updated });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1160,17 +1189,17 @@ app.post('/admin/settings', (req, res) => {
 });
 
 // حفظ مواقع المحلات
-app.post('/admin/locations', (req, res) => {
+app.post('/admin/locations', async (req, res) => {
   try {
     const { locations } = req.body;
     if (!Array.isArray(locations)) return res.status(400).json({ error: 'locations يجب أن يكون مصفوفة' });
-    const current = loadPassSettings();
+    const current = await loadPassSettings();
     current.locations = locations.map(l => ({
       latitude:     parseFloat(l.latitude),
       longitude:    parseFloat(l.longitude),
       relevantText: l.relevantText || 'أنت قريب من المحل',
     })).filter(l => !isNaN(l.latitude) && !isNaN(l.longitude));
-    savePassSettings(current);
+    await savePassSettings(current);
     res.json({ success: true, locations: current.locations });
   } catch (err) {
     res.status(500).json({ error: err.message });
