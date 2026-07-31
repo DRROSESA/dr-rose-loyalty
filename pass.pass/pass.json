@@ -11,6 +11,7 @@
   "foregroundColor": "rgb(70,35,55)",
   "backgroundColor": "rgb(250,245,248)",
   "labelColor": "rgb(180,120,150)",
+  "locations": [],
   "storeCard": {
     "headerFields": [],
     "secondaryFields": [],

@@ -212,15 +212,16 @@
       <span>لوحة التحكم</span>
     </div>
     <div class="topbar-actions">
-      <button class="btn btn-gray btn-sm" onclick="logout()">خروج</button>
+      <button class="btn btn-gray btn-sm" id="lang-btn" onclick="toggleLang()">EN</button>
+      <button class="btn btn-gray btn-sm" onclick="logout()" id="btn-logout">خروج</button>
     </div>
   </div>
 
   <div class="tabs">
-    <div class="tab active" onclick="showTab('scan')">📷 تسجيل زيارة</div>
-    <div class="tab" onclick="showTab('customers')">👥 العملاء</div>
-    <div class="tab" onclick="showTab('notify')">🔔 الإشعارات</div>
-    <div class="tab" onclick="showTab('settings')">⚙️ الإعدادات</div>
+    <div class="tab active" onclick="showTab('scan')" data-i18n="tab_scan">📷 تسجيل زيارة</div>
+    <div class="tab" onclick="showTab('customers')" data-i18n="tab_customers">👥 العملاء</div>
+    <div class="tab" onclick="showTab('notify')" data-i18n="tab_notify">🔔 الإشعارات</div>
+    <div class="tab" onclick="showTab('settings')" data-i18n="tab_settings">⚙️ الإعدادات</div>
   </div>
 
   <!-- ── تبويب: تسجيل زيارة ── -->
@@ -264,6 +265,7 @@
             <th>الاسم</th>
             <th>الجوال</th>
             <th>المدينة</th>
+            <th data-i18n="th_age">العمر</th>
             <th>الزيارات</th>
             <th>المكافآت</th>
             <th>الحالة</th>
@@ -297,6 +299,8 @@
         <button class="btn btn-sm" id="seg-all"     onclick="setSeg('all')"     style="background:var(--pink);color:#fff">الكل</button>
         <button class="btn btn-sm btn-gray" id="seg-pending"  onclick="setSeg('pending')">🎁 لديهم مكافأة</button>
         <button class="btn btn-sm btn-gray" id="seg-apple"    onclick="setSeg('apple')">🍎 Apple Wallet</button>
+        <button class="btn btn-sm btn-gray" id="seg-female"   onclick="setSeg('female')">👩 إناث</button>
+        <button class="btn btn-sm btn-gray" id="seg-male"     onclick="setSeg('male')">👨 ذكور</button>
         <button class="btn btn-sm btn-gray" id="seg-custom"   onclick="setSeg('custom')">تحديد يدوي</button>
       </div>
 
@@ -412,6 +416,22 @@
       </div>
     </div>
 
+    <!-- مواقع المحلات -->
+    <div class="notif-card">
+      <h3>📍 مواقع المحلات</h3>
+      <p style="font-size:13px;color:var(--gray);margin-bottom:16px;line-height:1.7">
+        عند اقتراب العميل من المحل تظهر بطاقته تلقائياً على شاشة القفل.<br/>
+        يمكنك إضافة أكثر من موقع (فروع متعددة).
+      </p>
+      <div id="locations-list"></div>
+      <button class="btn btn-gray btn-sm" onclick="addLocationRow()" style="margin-top:10px">+ إضافة موقع</button>
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button class="btn btn-primary" style="flex:1" onclick="saveLocations()">💾 حفظ المواقع</button>
+        <button class="btn btn-success" style="flex:1" onclick="detectMyLocation()">📡 تحديد موقعي الآن</button>
+      </div>
+      <div id="location-status" style="margin-top:10px;font-size:13px;color:var(--gray)"></div>
+    </div>
+
     <!-- الصور -->
     <div class="notif-card">
       <h3>🖼️ صورة البطاقة (Strip)</h3>
@@ -458,6 +478,14 @@
     <input id="add-phone" placeholder="05xxxxxxxx" inputmode="numeric"/>
     <label>المدينة</label>
     <input id="add-city" placeholder="الرياض"/>
+    <label>الجنس (اختياري)</label>
+    <select id="add-gender">
+      <option value="">— غير محدد —</option>
+      <option value="female">أنثى</option>
+      <option value="male">ذكر</option>
+    </select>
+    <label>تاريخ الميلاد (اختياري)</label>
+    <input id="add-birth" type="date" :max="today"/>
     <div class="modal-btns">
       <button class="btn btn-primary" style="flex:1" onclick="addCustomer()">إضافة</button>
       <button class="btn btn-gray" onclick="closeModal('modal-add')">إلغاء</button>
@@ -544,6 +572,63 @@ const API = 'https://dr-rose-loyalty-production.up.railway.app';
 let customers = [];
 let activeSerial = null;
 
+// ── الترجمات (يجب أن تكون أول شيء) ──────────────────────────
+const TRANSLATIONS = {
+  ar: {
+    tab_scan: '📷 تسجيل زيارة', tab_customers: '👥 العملاء',
+    tab_notify: '🔔 الإشعارات', tab_settings: '⚙️ الإعدادات',
+    btn_logout: 'خروج', topbar_title: 'لوحة التحكم',
+    login_title: 'لوحة تحكم الأدمن', login_pwd: 'كلمة المرور', login_btn: 'دخول',
+    s_total: 'إجمالي العملاء', s_pending: 'ينتظرون مكافأة',
+    s_revoked: 'بطاقات موقوفة', s_apple: 'Apple Wallet',
+    scan_title: '📷 تسجيل زيارة', scan_btn_cam: '📷 مسح بالكاميرا',
+    scan_input: 'رقم البطاقة أو الجوال', scan_order: 'رقم الطلب (اختياري)',
+    scan_submit: '✅ تسجيل',
+    th_num: 'رقم البطاقة', th_name: 'الاسم', th_phone: 'الجوال',
+    th_city: 'المدينة', th_age: 'العمر', th_visits: 'الزيارات', th_rewards: 'المكافآت',
+    th_status: 'الحالة', th_apple: 'Apple', th_actions: 'إجراءات',
+    badge_normal: 'عادي', badge_pending: '🎁 مكافأة', badge_revoked: 'موقوفة',
+    btn_visit: '+ زيارة', btn_redeem: '🎁 استبدال', btn_notify: '🔔',
+    btn_revoke: '🚫', btn_unrevoke: 'فك', btn_add_customer: '+ عميل جديد',
+    btn_remove_visit: '↩️ سحب',
+    search_customers: '🔍 بحث بالاسم أو الجوال أو رقم البطاقة',
+    notif_msg_ph: 'اكتب رسالتك هنا...', notif_send: '📤 إرسال الإشعار',
+    seg_all: 'الكل', seg_pending: '🎁 لديهم مكافأة',
+    seg_apple: '🍎 Apple Wallet', seg_custom: 'تحديد يدوي',
+    notif_log_title: '📋 سجل الإشعارات السابقة',
+    settings_save: '💾 حفظ الإعدادات', settings_save_push: '💾 حفظ + تحديث بطاقات الكل',
+    loc_add: '+ إضافة موقع', loc_save: '💾 حفظ المواقع', loc_detect: '📡 تحديد موقعي الآن',
+    no_customers: 'لا يوجد عملاء', no_log: 'لا يوجد سجل',
+  },
+  en: {
+    tab_scan: '📷 Record Visit', tab_customers: '👥 Customers',
+    tab_notify: '🔔 Notifications', tab_settings: '⚙️ Settings',
+    btn_logout: 'Logout', topbar_title: 'Admin Panel',
+    login_title: 'Admin Panel', login_pwd: 'Password', login_btn: 'Login',
+    s_total: 'Total Customers', s_pending: 'Awaiting Reward',
+    s_revoked: 'Suspended Cards', s_apple: 'Apple Wallet',
+    scan_title: '📷 Record Visit', scan_btn_cam: '📷 Scan QR',
+    scan_input: 'Card No. or Phone', scan_order: 'Order No. (optional)',
+    scan_submit: '✅ Record',
+    th_num: 'Card No.', th_name: 'Name', th_phone: 'Phone',
+    th_city: 'City', th_age: 'Age', th_visits: 'Visits', th_rewards: 'Rewards',
+    th_status: 'Status', th_apple: 'Apple', th_actions: 'Actions',
+    badge_normal: 'Normal', badge_pending: '🎁 Reward', badge_revoked: 'Suspended',
+    btn_visit: '+ Visit', btn_redeem: '🎁 Redeem', btn_notify: '🔔',
+    btn_revoke: '🚫', btn_unrevoke: 'Restore', btn_add_customer: '+ New Customer',
+    btn_remove_visit: '↩️ Undo',
+    search_customers: '🔍 Search by name, phone or card number',
+    notif_msg_ph: 'Write your message here...', notif_send: '📤 Send Notification',
+    seg_all: 'All', seg_pending: '🎁 Have Reward',
+    seg_apple: '🍎 Apple Wallet', seg_custom: 'Manual Select',
+    notif_log_title: '📋 Notification History',
+    settings_save: '💾 Save Settings', settings_save_push: '💾 Save + Push to All',
+    loc_add: '+ Add Location', loc_save: '💾 Save Locations', loc_detect: '📡 Detect My Location',
+    no_customers: 'No customers found', no_log: 'No log entries',
+  }
+};
+let currentLang = localStorage.getItem('admin_lang') || 'ar';
+
 // ── دخول ──────────────────────────────────────────────────────
 async function login() {
   const pwd = document.getElementById('pwd').value;
@@ -598,31 +683,44 @@ function updateStats(list) {
 function renderTable(list) {
   const tbody = document.getElementById('cust-table');
   if (!list.length) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:#aaa">لا يوجد عملاء</td></tr>'; return; }
-  tbody.innerHTML = list.map(c => `
+  const t = TRANSLATIONS[currentLang];
+  tbody.innerHTML = list.map(c => {
+    let ageStr = '—';
+    if (c.birth_date) {
+      const birth = new Date(c.birth_date);
+      const today = new Date();
+      let age = today.getFullYear() - birth.getFullYear();
+      const m = today.getMonth() - birth.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+      ageStr = age + (currentLang === 'ar' ? ' سنة' : ' y');
+    }
+    return `
     <tr>
       <td><b>${c.customer_number}</b></td>
       <td>${c.name}</td>
       <td style="direction:ltr">${c.phone}</td>
       <td>${c.city||'—'}</td>
+      <td>${ageStr}</td>
       <td>${c.visits} ${c.visits%5>0?'('+c.visits%5+'/5)':''}</td>
       <td>${c.free_visits||0}</td>
       <td><span class="badge badge-${c.revoked?'revoked':c.status==='free_pending'?'pending':'normal'}">
-        ${c.revoked?'موقوفة':c.status==='free_pending'?'🎁 مكافأة':'عادي'}
+        ${c.revoked?t.badge_revoked:c.status==='free_pending'?t.badge_pending:t.badge_normal}
       </span></td>
       <td>${c.has_apple||c.had_apple?'✅':'—'}</td>
       <td>
         <div class="actions-cell">
-          <button class="btn btn-success btn-sm" onclick="quickVisit('${c.customer_number}')">+ زيارة</button>
-          ${c.status==='free_pending'&&!c.revoked?`<button class="btn btn-warn btn-sm" onclick="openRedeem('${c.customer_number}','${c.name}')">🎁 استبدال</button>`:''}
+          <button class="btn btn-success btn-sm" onclick="quickVisit('${c.customer_number}')">${t.btn_visit}</button>
+          ${c.status==='free_pending'&&!c.revoked?`<button class="btn btn-warn btn-sm" onclick="openRedeem('${c.customer_number}','${c.name}')">${t.btn_redeem}</button>`:''}
           <button class="btn btn-gray btn-sm" onclick="openVisitLog('${c.customer_number}','${c.name}')">📋</button>
-          <button class="btn btn-gray btn-sm" onclick="openNotify('${c.customer_number}','${c.name}')">🔔</button>
+          <button class="btn btn-gray btn-sm" onclick="openNotify('${c.customer_number}','${c.name}')">${t.btn_notify}</button>
+          ${c.visits>0&&!c.revoked?`<button class="btn btn-warn btn-sm" onclick="removeVisit('${c.customer_number}','${c.name}')">${t.btn_remove_visit||'↩️'}</button>`:''}
           ${c.revoked
-            ? `<button class="btn btn-success btn-sm" onclick="unrevoke('${c.customer_number}')">فك</button>`
-            : `<button class="btn btn-warn btn-sm" onclick="openRevoke('${c.customer_number}','${c.name}')">🚫</button>`}
+            ? `<button class="btn btn-success btn-sm" onclick="unrevoke('${c.customer_number}')">${t.btn_unrevoke}</button>`
+            : `<button class="btn btn-warn btn-sm" onclick="openRevoke('${c.customer_number}','${c.name}')">${t.btn_revoke}</button>`}
         </div>
       </td>
     </tr>
-  `).join('');
+  `}).join('');
 }
 
 function filterCustomers() {
@@ -671,6 +769,20 @@ async function recordVisit() {
   }
 }
 
+// ── سحب زيارة ──────────────────────────────────────────────────
+async function removeVisit(serial, name) {
+  const t = TRANSLATIONS[currentLang];
+  if (!confirm(currentLang === 'ar' ? `سحب آخر زيارة لـ ${name}؟` : `Undo last visit for ${name}?`)) return;
+  const res  = await fetch(`${API}/remove-visit/${serial}`, { method:'POST' });
+  const data = await res.json();
+  if (res.ok) {
+    toast(currentLang === 'ar' ? `↩️ تم سحب الزيارة — ${name}` : `↩️ Visit removed — ${name}`);
+    loadCustomers();
+  } else {
+    toast('❌ ' + (data.error || 'خطأ'));
+  }
+}
+
 // ── زيارة سريعة من جدول العملاء ───────────────────────────────
 async function quickVisit(serial) {
   const res  = await fetch(`${API}/visit-by-number/${serial}`, {
@@ -712,13 +824,15 @@ async function confirmRedeem(rewardType) {
 function openAddCustomer() { document.getElementById('modal-add').classList.add('open') }
 
 async function addCustomer() {
-  const name  = document.getElementById('add-name').value.trim();
-  const phone = document.getElementById('add-phone').value.trim();
-  const city  = document.getElementById('add-city').value.trim();
+  const name       = document.getElementById('add-name').value.trim();
+  const phone      = document.getElementById('add-phone').value.trim();
+  const city       = document.getElementById('add-city').value.trim();
+  const gender     = document.getElementById('add-gender').value || null;
+  const birth_date = document.getElementById('add-birth').value || null;
   if (!name||!phone) { toast('الاسم والجوال مطلوبان'); return; }
   const res  = await fetch(`${API}/customer`, {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({name,phone,city})
+    body: JSON.stringify({name, phone, city, gender, birth_date})
   });
   const data = await res.json();
   if (res.ok) {
@@ -752,7 +866,7 @@ function updateCharCount() {
 
 function setSeg(seg) {
   currentSeg = seg;
-  ['all','pending','apple','custom'].forEach(s => {
+  ['all','pending','apple','female','male','custom'].forEach(s => {
     const el = document.getElementById(`seg-${s}`);
     el.style.background = s===seg ? 'var(--pink)' : '';
     el.style.color      = s===seg ? '#fff' : '';
@@ -769,6 +883,8 @@ function getSegmentCount() {
   if (currentSeg==='all')     return customers.filter(c=>!c.revoked).length;
   if (currentSeg==='pending') return customers.filter(c=>c.status==='free_pending'&&!c.revoked).length;
   if (currentSeg==='apple')   return customers.filter(c=>(c.has_apple||c.had_apple)&&!c.revoked).length;
+  if (currentSeg==='female')  return customers.filter(c=>c.gender==='female'&&!c.revoked).length;
+  if (currentSeg==='male')    return customers.filter(c=>c.gender==='male'&&!c.revoked).length;
   if (currentSeg==='custom')  return selectedSerials.size;
   return 0;
 }
@@ -786,9 +902,26 @@ function renderNotifList(list) {
         onchange="toggleSerial('${c.customer_number}',this.checked)"
         ${selectedSerials.has(String(c.customer_number))?'checked':''}/>
       <span style="flex:1"><b>${c.name}</b> <span style="color:var(--gray);font-size:12px">${c.phone}</span></span>
+      <select onclick="event.stopPropagation()" onchange="setCustomerGender('${c.customer_number}',this.value)" style="font-size:12px;padding:3px 6px;border-radius:6px;border:1px solid var(--border)">
+        <option value="" ${!c.gender?'selected':''}>—</option>
+        <option value="female" ${c.gender==='female'?'selected':''}>أنثى</option>
+        <option value="male" ${c.gender==='male'?'selected':''}>ذكر</option>
+      </select>
       <span style="font-size:12px;color:var(--gray)">${c.visits%5}/5</span>
     </label>
   `).join('');
+}
+
+async function setCustomerGender(serial, gender) {
+  if (!gender) return;
+  const res = await fetch(`${API}/customer/${serial}/gender`, {
+    method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({gender})
+  });
+  if (res.ok) {
+    const c = customers.find(c=>String(c.customer_number)===String(serial));
+    if (c) c.gender = gender;
+    toast('✅ تم تحديث الجنس');
+  } else { toast('❌ خطأ'); }
 }
 
 function filterNotifList() {
@@ -825,10 +958,11 @@ async function sendNotifyMain() {
     res  = await fetch(`${API}/notify-batch`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:msg,serials}) });
     data = await res.json();
   } else {
-    // pending أو apple — نرسل batch
+    // pending أو apple أو female أو male — نرسل batch
     let filtered;
-    if (currentSeg==='pending') filtered = customers.filter(c=>c.status==='free_pending'&&!c.revoked);
-    else                        filtered = customers.filter(c=>(c.has_apple||c.had_apple)&&!c.revoked);
+    if      (currentSeg==='pending') filtered = customers.filter(c=>c.status==='free_pending'&&!c.revoked);
+    else if (currentSeg==='apple')   filtered = customers.filter(c=>(c.has_apple||c.had_apple)&&!c.revoked);
+    else                             filtered = customers.filter(c=>c.gender===currentSeg&&!c.revoked);
     const serials = filtered.map(c=>c.customer_number);
     res  = await fetch(`${API}/notify-batch`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({message:msg,serials}) });
     data = await res.json();
@@ -912,6 +1046,10 @@ async function loadSettings() {
 
   setStripMode(currentStripMode, false);
   updatePreview();
+
+  // تحميل المواقع
+  locationRows = (s.locations || []).map(l => ({ ...l }));
+  renderLocationRows();
 }
 
 function rgbToHex(rgb) {
@@ -1048,6 +1186,166 @@ async function uploadPerVisit(n) {
   toast(res.ok ? `✅ تم رفع صورة الزيارة ${n}` : '❌ خطأ في الرفع');
 }
 
+// ══════════════════════════════════════════════════════════════
+// ── مواقع المحلات ─────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+let locationRows = [];
+
+function renderLocationRows() {
+  const el = document.getElementById('locations-list');
+  if (!locationRows.length) {
+    el.innerHTML = '<p style="font-size:13px;color:#aaa;padding:10px 0">لا توجد مواقع مضافة</p>';
+    return;
+  }
+  el.innerHTML = locationRows.map((loc, i) => `
+    <div style="background:#f9f4f6;border-radius:12px;padding:14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="font-size:13px;font-weight:700;color:var(--pink)">📍 موقع ${i + 1}</span>
+        <button class="btn btn-warn btn-sm" onclick="removeLocationRow(${i})">حذف</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div>
+          <label style="display:block;font-size:12px;font-weight:700;color:var(--gray);margin-bottom:4px">خط العرض (Latitude)</label>
+          <input type="number" step="any" id="loc-lat-${i}" value="${loc.latitude || ''}" placeholder="مثال: 24.7136"
+            style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:inherit;outline:none"
+            oninput="locationRows[${i}].latitude=this.value"/>
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;font-weight:700;color:var(--gray);margin-bottom:4px">خط الطول (Longitude)</label>
+          <input type="number" step="any" id="loc-lng-${i}" value="${loc.longitude || ''}" placeholder="مثال: 46.6753"
+            style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:inherit;outline:none"
+            oninput="locationRows[${i}].longitude=this.value"/>
+        </div>
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;font-weight:700;color:var(--gray);margin-bottom:4px">نص الإشعار</label>
+        <input type="text" id="loc-text-${i}" value="${loc.relevantText || ''}" placeholder="أنت قريب من د. روز للورد 🌹"
+          style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:inherit;outline:none"
+          oninput="locationRows[${i}].relevantText=this.value"/>
+      </div>
+    </div>
+  `).join('');
+}
+
+function addLocationRow(lat = '', lng = '', text = '') {
+  locationRows.push({ latitude: lat, longitude: lng, relevantText: text || 'أنت قريب من د. روز للورد 🌹' });
+  renderLocationRows();
+}
+
+function removeLocationRow(i) {
+  locationRows.splice(i, 1);
+  renderLocationRows();
+}
+
+function detectMyLocation() {
+  const status = document.getElementById('location-status');
+  if (!navigator.geolocation) { status.textContent = '❌ المتصفح لا يدعم تحديد الموقع'; return; }
+  status.textContent = '⏳ جاري تحديد موقعك...';
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const lat = pos.coords.latitude.toFixed(6);
+      const lng = pos.coords.longitude.toFixed(6);
+      addLocationRow(lat, lng, 'أنت قريب من د. روز للورد 🌹');
+      status.textContent = `✅ تم تحديد الموقع: ${lat}, ${lng}`;
+    },
+    err => { status.textContent = '❌ تعذر تحديد الموقع، تأكد من تفعيل الـ GPS'; }
+  );
+}
+
+async function saveLocations() {
+  // اقرأ القيم الحالية من الحقول
+  const locs = locationRows.map((_, i) => ({
+    latitude:     document.getElementById(`loc-lat-${i}`)?.value || '',
+    longitude:    document.getElementById(`loc-lng-${i}`)?.value || '',
+    relevantText: document.getElementById(`loc-text-${i}`)?.value || 'أنت قريب من د. روز للورد 🌹',
+  }));
+
+  const res = await fetch(`${API}/admin/locations`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ locations: locs })
+  });
+  const data = await res.json();
+  if (res.ok) {
+    toast(`✅ تم حفظ ${data.locations.length} موقع`);
+    document.getElementById('location-status').textContent = '';
+  } else {
+    toast('❌ ' + (data.error || 'خطأ في الحفظ'));
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// ── نظام اللغة ────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+
+function applyLang() {
+  const t = TRANSLATIONS[currentLang];
+  const isEn = currentLang === 'en';
+
+  // اتجاه الصفحة
+  document.documentElement.lang = isEn ? 'en' : 'ar';
+  document.documentElement.dir = isEn ? 'ltr' : 'rtl';
+
+  // زر اللغة
+  document.getElementById('lang-btn').textContent = isEn ? 'عربي' : 'EN';
+
+  // العناصر بـ data-i18n
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    if (t[key]) el.textContent = t[key];
+  });
+
+  // عناصر خاصة
+  document.getElementById('btn-logout').textContent = t.btn_logout;
+  document.querySelector('.topbar-logo span').textContent = t.topbar_title;
+  document.querySelector('.login-card h2').textContent = t.login_title;
+  document.getElementById('pwd').placeholder = t.login_pwd;
+  document.querySelector('.login-card .btn-primary').textContent = t.login_btn;
+
+  // إحصائيات
+  document.querySelectorAll('.stat-card .lbl').forEach((el, i) => {
+    el.textContent = [t.s_total, t.s_pending, t.s_revoked, t.s_apple][i] || el.textContent;
+  });
+
+  // scan
+  document.querySelector('#scan-box h3').textContent = t.scan_title;
+  document.getElementById('cam-btn').textContent = t.scan_btn_cam;
+  document.getElementById('visit-input').placeholder = t.scan_input;
+  document.getElementById('order-input').placeholder = t.scan_order;
+  document.querySelector('#scan-box .btn-primary:not(#cam-btn)').textContent = t.scan_submit;
+
+  // بحث العملاء
+  document.getElementById('cust-search').placeholder = t.search_customers;
+  document.querySelector('[onclick="openAddCustomer()"]').textContent = t.btn_add_customer;
+
+  // جدول العملاء — headers
+  const ths = document.querySelectorAll('thead th');
+  const thKeys = ['th_num','th_name','th_phone','th_city','th_age','th_visits','th_rewards','th_status','th_apple','th_actions'];
+  ths.forEach((th, i) => { if (t[thKeys[i]]) th.textContent = t[thKeys[i]]; });
+
+  // إشعارات
+  document.getElementById('notif-msg-main').placeholder = t.notif_msg_ph;
+  document.getElementById('seg-all').textContent = t.seg_all;
+  document.getElementById('seg-pending').textContent = t.seg_pending;
+  document.getElementById('seg-apple').textContent = t.seg_apple;
+  document.getElementById('seg-custom').textContent = t.seg_custom;
+  document.querySelector('[onclick="sendNotifyMain()"]').textContent = t.notif_send;
+
+  // مواقع
+  document.querySelector('[onclick="addLocationRow()"]').textContent = t.loc_add;
+  document.querySelector('[onclick="saveLocations()"]').textContent = t.loc_save;
+  document.querySelector('[onclick="detectMyLocation()"]').textContent = t.loc_detect;
+
+  // إعادة رسم الجدول لتحديث الـ badges والأزرار
+  if (customers.length) renderTable(customers);
+  renderLocationRows();
+}
+
+function toggleLang() {
+  currentLang = currentLang === 'ar' ? 'en' : 'ar';
+  localStorage.setItem('admin_lang', currentLang);
+  applyLang();
+}
+
 // showTab يحمّل الإعدادات عند أول دخول
 let settingsLoaded = false;
 
@@ -1069,6 +1367,12 @@ if (localStorage.getItem('admin')) {
   loadCustomers();
   loadNotifLog();
 }
+
+// تطبيق اللغة عند التحميل
+applyLang();
+
+// تحديد max لتاريخ الميلاد في مودال الإضافة
+document.getElementById('add-birth').max = new Date().toISOString().split('T')[0];
 
 document.getElementById('pwd').addEventListener('keydown', e => { if(e.key==='Enter') login(); });
 

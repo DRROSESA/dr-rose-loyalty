@@ -102,6 +102,57 @@
     .btn:active { transform: scale(0.98); }
     .btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
+    /* الشروط والأحكام */
+    .terms-box {
+      background: #fdf5f8;
+      border: 1.5px solid #f0c8da;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      color: #555;
+      line-height: 1.8;
+      max-height: 180px;
+      overflow-y: auto;
+      text-align: right;
+    }
+    .terms-box h4 {
+      font-size: 13px;
+      font-weight: 800;
+      color: #c63c78;
+      margin-bottom: 8px;
+      margin-top: 10px;
+    }
+    .terms-box h4:first-child { margin-top: 0; }
+    .terms-box ul {
+      padding-right: 18px;
+      margin: 0;
+    }
+    .terms-box ul li { margin-bottom: 4px; }
+    .terms-agree {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 16px;
+      cursor: pointer;
+      font-size: 13px;
+      color: #444;
+      font-weight: 600;
+    }
+    .terms-agree input[type=checkbox] {
+      width: 18px;
+      height: 18px;
+      min-width: 18px;
+      margin-top: 2px;
+      accent-color: #c63c78;
+      cursor: pointer;
+      border-radius: 4px;
+      border: none;
+      padding: 0;
+      background: none;
+      box-shadow: none;
+    }
+
     .msg {
       margin-top: 14px;
       padding: 13px 16px;
@@ -183,12 +234,12 @@
   <div id="form-section">
     <div class="logo">
       <img src="logo.png" alt="Dr Rose" />
-      <p>سجّلي للحصول على بطاقة الولاء</p>
+      <p>سجّل للحصول على بطاقة الولاء</p>
     </div>
 
     <div class="form-group">
       <label for="name">الاسم الكامل</label>
-      <input type="text" id="name" placeholder="مثال: فاطمة أحمد" autocomplete="name" />
+      <input type="text" id="name" placeholder="مثال: محمد أحمد" autocomplete="name" />
     </div>
 
     <div class="form-group">
@@ -201,7 +252,34 @@
       <input type="text" id="city-text" placeholder="مثال: الرياض" autocomplete="address-level2" />
     </div>
 
-    <button class="btn" id="submit-btn" onclick="register()">تسجيل وتحميل البطاقة</button>
+    <div class="form-group">
+      <label for="birth-date">تاريخ الميلاد (اختياري)</label>
+      <input type="date" id="birth-date" max="" autocomplete="bday" />
+    </div>
+
+    <!-- الشروط والأحكام -->
+    <div class="terms-box">
+      <h4>كيف تكسب نقاطك؟</h4>
+      <ul>
+        <li>لكل زيارة لمتجر د. روز للورد تحصل على طابع واحد</li>
+        <li>بعد 5 طوابع تحصل على خصم 50% على فاتورتك القادمة أو بوكيه 💐 مجاني بقيمة 35 ريال</li>
+      </ul>
+      <h4>شروط الاستخدام</h4>
+      <ul>
+        <li>يجب استخدام الخصم خلال 10 أيام من تاريخ الحصول عليه، وإلا تنتهي المكافأة</li>
+        <li>لا يُحتسب أكثر من زيارة واحدة كل 6 ساعات</li>
+        <li>البطاقة شخصية وغير قابلة للتحويل</li>
+        <li>يتم تصفير الطوابع إذا مرت 8 أشهر دون إكمال الدورة</li>
+        <li>الخصم لا يُجمع مع أي عروض أو خصومات أخرى</li>
+        <li>يتم تطبيق الخصم على: بوكيهات الورد، فازات الورد، تنسيق الهدايا</li>
+      </ul>
+    </div>
+    <label class="terms-agree">
+      <input type="checkbox" id="terms-check" onchange="toggleSubmit()"/>
+      أوافق على الشروط والأحكام
+    </label>
+
+    <button class="btn" id="submit-btn" onclick="register()" disabled>تسجيل وتحميل البطاقة</button>
     <div class="msg" id="msg"></div>
   </div>
 
@@ -244,9 +322,10 @@ function setLoading(on) {
 }
 
 async function register() {
-  const name  = document.getElementById('name').value.trim();
-  const phone = document.getElementById('phone').value.trim();
-  const city  = getCity();
+  const name       = document.getElementById('name').value.trim();
+  const phone      = document.getElementById('phone').value.trim();
+  const city       = getCity();
+  const birth_date = document.getElementById('birth-date').value || null;
 
   if (!name)  { showMsg('يرجى إدخال الاسم', 'error'); return; }
   if (!/^05\d{8}$/.test(phone)) { showMsg('رقم الجوال يجب أن يبدأ بـ 05 ويكون 10 أرقام', 'error'); return; }
@@ -267,7 +346,7 @@ async function register() {
     const res  = await fetch(`${API}/customer`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, phone, city })
+      body: JSON.stringify({ name, phone, city, birth_date })
     });
     const data = await res.json();
 
@@ -297,9 +376,17 @@ function downloadPass(e) {
   window.location.href = `${API}/pass/${registeredPhone}`;
 }
 
+function toggleSubmit() {
+  const checked = document.getElementById('terms-check').checked;
+  document.getElementById('submit-btn').disabled = !checked;
+}
+
 document.getElementById('phone').addEventListener('input', function () {
   this.value = this.value.replace(/\D/g, '');
 });
+
+// تحديد max لتاريخ الميلاد بتاريخ اليوم
+document.getElementById('birth-date').max = new Date().toISOString().split('T')[0];
 
 </script>
 </body>

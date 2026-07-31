@@ -577,8 +577,9 @@ app.get('/customers', async (req, res) => {
 // تسجيل عميل جديد
 app.post('/customer', async (req, res) => {
   try {
-    const { name, phone, city, birth_date } = req.body;
+    const { name, phone, city, birth_date, gender } = req.body;
     if (!name || !phone) return res.status(400).json({ error: 'الاسم والجوال مطلوبان' });
+    if (gender && !['male', 'female'].includes(gender)) return res.status(400).json({ error: 'قيمة الجنس غير صحيحة' });
 
     const db = await getDB();
 
@@ -591,14 +592,27 @@ app.post('/customer', async (req, res) => {
     const customerNumber = (maxRow.mx || 9999) + 1;
 
     await db.execute(
-      'INSERT INTO loyalty_customers (customer_number, name, phone, city, birth_date, visits, free_visits, status, cycle_start) VALUES (?, ?, ?, ?, ?, 0, 0, "normal", NOW())',
-      [customerNumber, name, phone, city || '', birth_date || null]
+      'INSERT INTO loyalty_customers (customer_number, name, phone, city, gender, birth_date, visits, free_visits, status, cycle_start) VALUES (?, ?, ?, ?, ?, ?, 0, 0, "normal", NOW())',
+      [customerNumber, name, phone, city || '', gender || null, birth_date || null]
     );
 
     const [[customer]] = await db.execute('SELECT * FROM loyalty_customers WHERE phone = ?', [phone]);
     res.status(201).json(customer);
   } catch (err) {
     console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// تحديث جنس العميل
+app.patch('/customer/:number/gender', async (req, res) => {
+  try {
+    const { gender } = req.body;
+    if (!['male', 'female'].includes(gender)) return res.status(400).json({ error: 'قيمة الجنس غير صحيحة' });
+    const db = await getDB();
+    await db.execute('UPDATE loyalty_customers SET gender = ? WHERE customer_number = ?', [gender, req.params.number]);
+    res.json({ success: true });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
