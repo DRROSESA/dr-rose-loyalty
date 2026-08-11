@@ -1,7 +1,7 @@
 // ─── متجر ورد — امتداد المتجر داخل مشروع dr-rose-loyalty ──────────────────
 const crypto = require('crypto');
 const multer = require('multer');
-const { scrapeProductUrl, downloadImageAsBuffer } = require('./store-scraper');
+const { scrapeProductUrl, scrapeCollectionUrl, downloadImageAsBuffer } = require('./store-scraper');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -272,6 +272,9 @@ module.exports = function registerStore(app, getDB, CONFIG) {
 <meta property="og:image" content="${primaryImgUrl}">
 <link rel="canonical" href="${canonical}">
 <link rel="icon" href="/images/drrose-logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/store/store.css">
 <script type="application/ld+json">${jsonLd}</script>
 </head>
@@ -610,37 +613,75 @@ module.exports = function registerStore(app, getDB, CONFIG) {
     } catch (err) { res.status(500).json({ error: err.message || 'فشل سحب البيانات' }); }
   });
 
+  // يحفظ منتج مسحوب واحد كمسودة + يحمّل صوره — تُستخدم من مسار المنتج الواحد ومسار السحب الجماعي
+  async function saveScrapedProduct(db, { title, description, price, compareAtPrice, currency, categoryId, images, sourceUrl }) {
+    const slug = await uniqueSlug(db, title, 'store_products');
+    const [result] = await db.execute(
+      `INSERT INTO store_products (category_id, name, slug, description, price, compare_at_price, currency, status, source_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?)`,
+      [categoryId || null, title, slug, description || null, price || 0, compareAtPrice || null, currency || 'SAR', sourceUrl || null]
+    );
+    const productId = result.insertId;
+
+    const imageUrls = Array.isArray(images) ? images.slice(0, 12) : [];
+    let order = 0;
+    for (const imgUrl of imageUrls) {
+      try {
+        const { buffer, mimeType } = await downloadImageAsBuffer(imgUrl);
+        await db.execute(
+          `INSERT INTO store_product_images (product_id, image_data, mime_type, sort_order, is_primary, source_url)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [productId, buffer, mimeType, order, order === 0 ? 1 : 0, imgUrl]
+        );
+        order++;
+      } catch (imgErr) {
+        // نتجاهل صورة فشل تحميلها ونكمل الباقي — لا نوقف الحفظ كامل بسببها
+        continue;
+      }
+    }
+    return { id: productId, slug, imagesSaved: order };
+  }
+
   app.post('/admin/store/scrape/confirm', async (req, res) => {
     try {
       const { title, description, price, currency, categoryId, images, sourceUrl } = req.body;
       if (!title) return res.status(400).json({ error: 'العنوان مطلوب' });
       const db = await getDB();
-      const slug = await uniqueSlug(db, title, 'store_products');
-      const [result] = await db.execute(
-        `INSERT INTO store_products (category_id, name, slug, description, price, currency, status, source_url)
-         VALUES (?, ?, ?, ?, ?, ?, 'draft', ?)`,
-        [categoryId || null, title, slug, description || null, price || 0, currency || 'SAR', sourceUrl || null]
-      );
-      const productId = result.insertId;
+      const saved = await saveScrapedProduct(db, { title, description, price, currency, categoryId, images, sourceUrl });
+      res.json({ success: true, ...saved });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
 
-      const imageUrls = Array.isArray(images) ? images.slice(0, 12) : [];
-      let order = 0;
-      for (const imgUrl of imageUrls) {
+  // ─── سحب جماعي من صفحة مجموعة/تصنيف (Shopify) ───────────────────────────
+  app.post('/admin/store/scrape-collection', async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url) return res.status(400).json({ error: 'الرابط مطلوب' });
+      const data = await scrapeCollectionUrl(url);
+      res.json(data);
+    } catch (err) { res.status(500).json({ error: err.message || 'فشل سحب المجموعة' }); }
+  });
+
+  // يحفظ مجموعة منتجات محددة (بعد المراجعة) كمسودات — كل منتج مستقل، فشل واحد ما يوقف الباقي
+  app.post('/admin/store/scrape-collection/confirm', async (req, res) => {
+    try {
+      const { products, categoryId } = req.body;
+      if (!Array.isArray(products) || !products.length) {
+        return res.status(400).json({ error: 'لا يوجد منتجات محددة للحفظ' });
+      }
+      const db = await getDB();
+      const saved = [];
+      const failed = [];
+      for (const p of products.slice(0, 100)) {
+        if (!p.title) { failed.push({ title: p.title || '(بدون اسم)', error: 'العنوان مطلوب' }); continue; }
         try {
-          const { buffer, mimeType } = await downloadImageAsBuffer(imgUrl);
-          await db.execute(
-            `INSERT INTO store_product_images (product_id, image_data, mime_type, sort_order, is_primary, source_url)
-             VALUES (?, ?, ?, ?, ?, ?)`,
-            [productId, buffer, mimeType, order, order === 0 ? 1 : 0, imgUrl]
-          );
-          order++;
-        } catch (imgErr) {
-          // نتجاهل صورة فشل تحميلها ونكمل الباقي — لا نوقف الحفظ كامل بسببها
-          continue;
+          const result = await saveScrapedProduct(db, { ...p, categoryId: categoryId || null });
+          saved.push({ title: p.title, ...result });
+        } catch (err) {
+          failed.push({ title: p.title, error: err.message });
         }
       }
-
-      res.json({ success: true, id: productId, slug, imagesSaved: order });
+      res.json({ success: true, savedCount: saved.length, failedCount: failed.length, saved, failed });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 };

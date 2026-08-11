@@ -538,30 +538,67 @@
   <!-- السكرابر -->
   <div id="store-section-scraper" style="display:none">
     <div style="max-width:640px">
-      <h3>🔗 سحب منتج من رابط</h3>
-      <p style="font-size:13px;color:var(--gray);margin-bottom:14px">
-        الصق رابط منتج من أي متجر (سلة، زد، ووكومرس أو غيره) وسيتم سحب الاسم والوصف والسعر والصور تلقائياً
-        للمراجعة قبل الحفظ.
-      </p>
-      <label>رابط المنتج</label>
-      <input id="scrape-url" placeholder="https://example.com/product/..." style="width:100%"/>
-      <button class="btn btn-primary" style="margin-top:12px" onclick="runScraper()" id="scrape-btn">سحب البيانات</button>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <button class="store-subtab active" id="scrape-mode-single" onclick="setScrapeMode('single')">منتج واحد</button>
+        <button class="store-subtab" id="scrape-mode-collection" onclick="setScrapeMode('collection')">مجموعة كاملة</button>
+      </div>
 
-      <div id="scrape-review" style="display:none;margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
-        <h3>مراجعة قبل الحفظ</h3>
-        <label>العنوان</label>
-        <input id="scrape-title" style="width:100%"/>
-        <label>الوصف</label>
-        <textarea id="scrape-desc" rows="3" style="width:100%"></textarea>
-        <label>السعر (ريال)</label>
-        <input id="scrape-price" type="number" step="0.01"/>
-        <label>التصنيف</label>
-        <select id="scrape-category"></select>
-        <label>الصور (اختر ما تريد حفظه)</label>
-        <div id="scrape-images" style="display:flex;flex-wrap:wrap;gap:10px;margin:10px 0"></div>
-        <div class="modal-btns">
-          <button class="btn btn-primary" style="flex:1" onclick="confirmScrapeSave()">حفظ كمسودة</button>
-          <button class="btn btn-gray" onclick="cancelScrapeReview()">إلغاء</button>
+      <!-- منتج واحد -->
+      <div id="scrape-single-panel">
+        <h3>🔗 سحب منتج من رابط</h3>
+        <p style="font-size:13px;color:var(--gray);margin-bottom:14px">
+          الصق رابط منتج من أي متجر (سلة، زد، ووكومرس، شوبيفاي أو غيره) وسيتم سحب الاسم والوصف والسعر والصور تلقائياً
+          للمراجعة قبل الحفظ.
+        </p>
+        <label>رابط المنتج</label>
+        <input id="scrape-url" placeholder="https://example.com/products/..." style="width:100%"/>
+        <button class="btn btn-primary" style="margin-top:12px" onclick="runScraper()" id="scrape-btn">سحب البيانات</button>
+
+        <div id="scrape-review" style="display:none;margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
+          <h3>مراجعة قبل الحفظ</h3>
+          <label>العنوان</label>
+          <input id="scrape-title" style="width:100%"/>
+          <label>الوصف</label>
+          <textarea id="scrape-desc" rows="3" style="width:100%"></textarea>
+          <label>السعر (ريال)</label>
+          <input id="scrape-price" type="number" step="0.01"/>
+          <label>التصنيف</label>
+          <select id="scrape-category"></select>
+          <label>الصور (اختر ما تريد حفظه)</label>
+          <div id="scrape-images" style="display:flex;flex-wrap:wrap;gap:10px;margin:10px 0"></div>
+          <div class="modal-btns">
+            <button class="btn btn-primary" style="flex:1" onclick="confirmScrapeSave()">حفظ كمسودة</button>
+            <button class="btn btn-gray" onclick="cancelScrapeReview()">إلغاء</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- مجموعة كاملة -->
+      <div id="scrape-collection-panel" style="display:none">
+        <h3>🔗 سحب مجموعة كاملة من رابط تصنيف</h3>
+        <p style="font-size:13px;color:var(--gray);margin-bottom:14px">
+          الصق رابط صفحة مجموعة/تصنيف (يحتوي على عشرات المنتجات) — مدعوم حالياً لمتاجر شوبيفاي فقط.
+          سيتم سحب كل المنتجات وعرضها لتختار أيها تحفظ.
+        </p>
+        <label>رابط المجموعة</label>
+        <input id="scrape-collection-url" placeholder="https://example.com/collections/..." style="width:100%"/>
+        <button class="btn btn-primary" style="margin-top:12px" onclick="runCollectionScraper()" id="scrape-collection-btn">سحب المجموعة</button>
+
+        <div id="scrape-collection-review" style="display:none;margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:10px">
+            <h3 id="scrape-collection-count" style="margin:0"></h3>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn btn-gray btn-sm" onclick="toggleAllCollectionProducts(true)">تحديد الكل</button>
+              <button class="btn btn-gray btn-sm" onclick="toggleAllCollectionProducts(false)">إلغاء الكل</button>
+            </div>
+          </div>
+          <label>التصنيف لكل المنتجات المحددة</label>
+          <select id="scrape-collection-category"></select>
+          <div id="scrape-collection-list" style="display:flex;flex-direction:column;gap:10px;margin:14px 0;max-height:500px;overflow-y:auto"></div>
+          <div class="modal-btns">
+            <button class="btn btn-primary" style="flex:1" onclick="confirmCollectionScrapeSave()" id="scrape-collection-save-btn">حفظ المحدد كمسودات</button>
+            <button class="btn btn-gray" onclick="cancelCollectionScrapeReview()">إلغاء</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1959,6 +1996,109 @@ async function confirmScrapeSave() {
     showStoreSection('products');
   } catch (err) {
     toast('❌ فشل الحفظ');
+  }
+}
+
+// ── وضع السحب: منتج واحد / مجموعة ─────────────────────────────────
+function setScrapeMode(mode) {
+  document.getElementById('scrape-mode-single').classList.toggle('active', mode === 'single');
+  document.getElementById('scrape-mode-collection').classList.toggle('active', mode === 'collection');
+  document.getElementById('scrape-single-panel').style.display = mode === 'single' ? '' : 'none';
+  document.getElementById('scrape-collection-panel').style.display = mode === 'collection' ? '' : 'none';
+}
+
+// ── سحب مجموعة كاملة ───────────────────────────────────────────────
+let collectionScrapedData = null;
+
+async function runCollectionScraper() {
+  const url = document.getElementById('scrape-collection-url').value.trim();
+  if (!url) { toast('الرابط مطلوب'); return; }
+  const btn = document.getElementById('scrape-collection-btn');
+  btn.disabled = true;
+  btn.textContent = 'جاري السحب... قد يستغرق دقيقة';
+  try {
+    const res = await fetch(`${API}/admin/store/scrape-collection`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    const data = await res.json();
+    if (data.error) { toast('❌ ' + data.error); return; }
+    collectionScrapedData = data;
+    collectionScrapedData.selected = new Set(data.products.map((_, i) => i));
+
+    document.getElementById('scrape-collection-count').textContent = `تم سحب ${data.count} منتج`;
+    fillCategorySelect(document.getElementById('scrape-collection-category'), '');
+    renderCollectionList();
+    document.getElementById('scrape-collection-review').style.display = 'block';
+    toast(`✅ تم سحب ${data.count} منتج — راجعها قبل الحفظ`);
+  } catch (err) {
+    toast('❌ فشل الاتصال بالسكرابر');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'سحب المجموعة';
+  }
+}
+
+function renderCollectionList() {
+  const list = document.getElementById('scrape-collection-list');
+  list.innerHTML = collectionScrapedData.products.map((p, i) => {
+    const checked = collectionScrapedData.selected.has(i);
+    const thumb = p.images && p.images[0] ? p.images[0] : '';
+    return `
+      <label style="display:flex;gap:12px;align-items:center;padding:10px;border:1px solid var(--border);border-radius:12px;cursor:pointer;background:${checked?'#fff':'#f7f7f7'}">
+        <input type="checkbox" ${checked?'checked':''} onchange="toggleCollectionProduct(${i}, this.checked)" style="width:18px;height:18px;flex-shrink:0"/>
+        ${thumb ? `<img src="${thumb}" style="width:50px;height:50px;object-fit:cover;border-radius:8px;flex-shrink:0">` : '<div style="width:50px;height:50px;background:var(--pink-light);border-radius:8px;flex-shrink:0"></div>'}
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtmlAdmin(p.title)}</div>
+          <div style="font-size:13px;color:var(--pink);font-weight:700">${p.price != null ? p.price + ' ' + (p.currency||'SAR') : 'بدون سعر'}</div>
+        </div>
+      </label>
+    `;
+  }).join('');
+}
+
+function toggleCollectionProduct(i, checked) {
+  if (checked) collectionScrapedData.selected.add(i);
+  else collectionScrapedData.selected.delete(i);
+}
+
+function toggleAllCollectionProducts(select) {
+  if (!collectionScrapedData) return;
+  collectionScrapedData.selected = select ? new Set(collectionScrapedData.products.map((_, i) => i)) : new Set();
+  renderCollectionList();
+}
+
+function cancelCollectionScrapeReview() {
+  document.getElementById('scrape-collection-review').style.display = 'none';
+  document.getElementById('scrape-collection-url').value = '';
+  collectionScrapedData = null;
+}
+
+async function confirmCollectionScrapeSave() {
+  if (!collectionScrapedData) return;
+  const categoryId = document.getElementById('scrape-collection-category').value || null;
+  const selectedProducts = collectionScrapedData.products.filter((_, i) => collectionScrapedData.selected.has(i));
+  if (!selectedProducts.length) { toast('اختر منتج واحد على الأقل'); return; }
+
+  const btn = document.getElementById('scrape-collection-save-btn');
+  btn.disabled = true;
+  btn.textContent = `جاري حفظ ${selectedProducts.length} منتج...`;
+  try {
+    const res = await fetch(`${API}/admin/store/scrape-collection/confirm`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ products: selectedProducts, categoryId }),
+    });
+    const data = await res.json();
+    if (data.error) { toast('❌ ' + data.error); return; }
+    toast(`✅ تم حفظ ${data.savedCount} منتج كمسودات${data.failedCount ? ` (فشل ${data.failedCount})` : ''} — راجعها في تبويب المنتجات قبل النشر`);
+    cancelCollectionScrapeReview();
+    loadStoreProducts();
+    showStoreSection('products');
+  } catch (err) {
+    toast('❌ فشل الحفظ');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'حفظ المحدد كمسودات';
   }
 }
 

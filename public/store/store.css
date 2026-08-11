@@ -19,7 +19,7 @@
 *{box-sizing:border-box;}
 body{
   margin:0;
-  font-family:'Tahoma','Segoe UI',sans-serif;
+  font-family:'IBM Plex Sans Arabic','Tahoma',sans-serif;
   background:var(--bg);
   color:var(--text);
   direction:rtl;
