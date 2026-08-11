@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>متجر دورو للجملة — أسعار جملة على باقات الورد</title>
+<meta name="description" content="متجر الجملة لدورو — أسعار خاصة للتجار وأصحاب المحلات">
+<link rel="icon" href="/images/drrose-logo-small.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/jomla/jomla.css">
+</head>
+<body>
+<header class="store-header">
+  <a href="/jomla" class="store-logo"><img src="/images/drrose-logo-small.png" alt="دورو"></a>
+  <a href="/jomla/cart.html" class="cart-link">السلة <span id="cart-count">🛒</span></a>
+</header>
+
+<nav class="category-bar" id="category-bar">
+  <button class="category-chip active" data-slug="">الكل</button>
+</nav>
+
+<main class="product-grid" id="product-grid">
+  <div class="empty-state">جاري التحميل...</div>
+</main>
+
+<script>
+const API = '';
+
+async function loadCategories() {
+  try {
+    const res = await fetch(API + '/jomla/api/categories');
+    const categories = await res.json();
+    const bar = document.getElementById('category-bar');
+    categories.forEach(c => {
+      const btn = document.createElement('button');
+      btn.className = 'category-chip';
+      btn.textContent = c.name;
+      btn.dataset.slug = c.slug;
+      btn.onclick = () => selectCategory(c.slug, btn);
+      bar.appendChild(btn);
+    });
+  } catch (err) { console.error(err); }
+}
+
+function selectCategory(slug, btnEl) {
+  document.querySelectorAll('.category-chip').forEach(b => b.classList.remove('active'));
+  btnEl.classList.add('active');
+  loadProducts(slug);
+}
+
+async function loadProducts(categorySlug) {
+  const grid = document.getElementById('product-grid');
+  grid.innerHTML = '<div class="empty-state">جاري التحميل...</div>';
+  try {
+    const url = new URL(API + '/jomla/api/products', location.origin);
+    if (categorySlug) url.searchParams.set('category', categorySlug);
+    const res = await fetch(url);
+    const data = await res.json();
+    const products = data.products || [];
+    if (!products.length) {
+      grid.innerHTML = '<div class="empty-state">لا توجد منتجات حالياً</div>';
+      return;
+    }
+    grid.innerHTML = products.map(p => {
+      const hasDiscount = p.compare_at_price && Number(p.compare_at_price) > Number(p.price);
+      const discountPct = hasDiscount ? Math.round(100 - (Number(p.price) / Number(p.compare_at_price)) * 100) : 0;
+      return `
+      <div class="product-card">
+        <div class="thumb-wrap">
+          <a href="/jomla/product/${encodeURIComponent(p.slug)}">
+            <img class="thumb" loading="lazy"
+                 src="${p.image_id ? '/jomla/product-image/' + p.image_id : ''}"
+                 alt="${escapeHtml(p.name)}"
+                 onerror="this.style.background='#fce4ec'">
+          </a>
+          ${hasDiscount ? `<span class="discount-badge">${discountPct}%-</span>` : ''}
+          <button class="btn-add-fab" data-id="${p.id}" aria-label="أضف إلى السلة">+</button>
+        </div>
+        <div class="body">
+          <a href="/jomla/product/${encodeURIComponent(p.slug)}" style="text-decoration:none">
+            <p class="name">${escapeHtml(p.name)}</p>
+          </a>
+          <div class="price-row">
+            <span class="price ${hasDiscount ? 'on-sale' : ''}">${p.price} ${escapeHtml(p.currency || 'SAR')}</span>
+            ${hasDiscount ? `<span class="price-compare">${p.compare_at_price} ${escapeHtml(p.currency || 'SAR')}</span>` : ''}
+          </div>
+          ${p.stock_note ? `<span class="stock-note">${escapeHtml(p.stock_note)}</span>` : ''}
+        </div>
+      </div>
+    `;
+    }).join('');
+
+    grid.querySelectorAll('.btn-add-fab').forEach(btn => {
+      btn.addEventListener('click', () => addToCart(btn.dataset.id, btn));
+    });
+  } catch (err) {
+    grid.innerHTML = '<div class="empty-state">تعذر تحميل المنتجات</div>';
+  }
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+async function addToCart(productId, btnEl) {
+  const original = btnEl.textContent;
+  btnEl.disabled = true;
+  try {
+    await fetch(API + '/jomla/api/cart/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ productId: Number(productId), quantity: 1 }),
+    });
+    btnEl.textContent = '✓';
+    setTimeout(() => { btnEl.textContent = original; btnEl.disabled = false; }, 1000);
+  } catch (err) {
+    btnEl.textContent = '!';
+    btnEl.disabled = false;
+    setTimeout(() => { btnEl.textContent = original; }, 1500);
+  }
+}
+
+loadCategories();
+loadProducts();
+</script>
+</body>
+</html>

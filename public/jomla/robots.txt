@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /jomla
+Disallow: /admin
+Sitemap: https://dr-rose-loyalty-production.up.railway.app/jomla/sitemap.xml

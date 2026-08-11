@@ -236,6 +236,7 @@
     <div class="tab" onclick="showTab('notify')" data-i18n="tab_notify">🔔 الإشعارات</div>
     <div class="tab" onclick="showTab('settings')" data-i18n="tab_settings">⚙️ الإعدادات</div>
     <div class="tab" onclick="showTab('store')" data-i18n="tab_store">🌹 المتجر</div>
+    <div class="tab" onclick="showTab('jomla')" data-i18n="tab_jomla">📦 متجر الجملة</div>
     <div class="tab" onclick="showTab('landing')" data-i18n="tab_landing">🏠 الصفحة الرئيسية</div>
   </div>
 
@@ -627,6 +628,150 @@
 
 </div>
 
+<!-- ── تبويب: متجر الجملة ── -->
+<div class="content" id="tab-jomla" style="display:none">
+
+  <div class="store-subnav">
+    <button class="store-subtab active" onclick="showJomlaSection('products')">📦 المنتجات</button>
+    <button class="store-subtab" onclick="showJomlaSection('categories')">🗂️ التصنيفات</button>
+    <button class="store-subtab" onclick="showJomlaSection('scraper')">🔗 السكرابر</button>
+    <button class="store-subtab" onclick="showJomlaSection('orders')">🛒 السلال</button>
+  </div>
+
+  <!-- منتجات -->
+  <div id="jomla-section-products">
+    <div class="search-row">
+      <input class="search-input" id="jomla-prod-search" placeholder="🔍 بحث بالاسم" oninput="filterJomlaProducts()"/>
+      <button class="btn btn-primary btn-sm" onclick="openAddJomlaProduct()">+ منتج جديد</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>صورة</th>
+            <th>الاسم</th>
+            <th>التصنيف</th>
+            <th>السعر</th>
+            <th>الحالة</th>
+            <th>إجراءات</th>
+          </tr>
+        </thead>
+        <tbody id="jomla-prod-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- تصنيفات -->
+  <div id="jomla-section-categories" style="display:none">
+    <div class="search-row">
+      <button class="btn btn-primary btn-sm" onclick="openAddJomlaCategory()">+ تصنيف جديد</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>الاسم</th>
+            <th>الرابط</th>
+            <th>مفعّل</th>
+            <th>إجراءات</th>
+          </tr>
+        </thead>
+        <tbody id="jomla-cat-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- السكرابر -->
+  <div id="jomla-section-scraper" style="display:none">
+    <div style="max-width:640px">
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <button class="store-subtab active" id="jomla-scrape-mode-single" onclick="setJomlaScrapeMode('single')">منتج واحد</button>
+        <button class="store-subtab" id="jomla-scrape-mode-collection" onclick="setJomlaScrapeMode('collection')">مجموعة كاملة</button>
+      </div>
+
+      <!-- منتج واحد -->
+      <div id="jomla-scrape-single-panel">
+        <h3>🔗 سحب منتج من رابط</h3>
+        <p style="font-size:13px;color:var(--gray);margin-bottom:14px">
+          الصق رابط منتج من أي متجر (سلة، زد، ووكومرس، شوبيفاي أو غيره) وسيتم سحب الاسم والوصف والسعر والصور تلقائياً
+          للمراجعة قبل الحفظ.
+        </p>
+        <label>رابط المنتج</label>
+        <input id="jomla-scrape-url" placeholder="https://example.com/products/..." style="width:100%"/>
+        <button class="btn btn-primary" style="margin-top:12px" onclick="runJomlaScraper()" id="jomla-scrape-btn">سحب البيانات</button>
+
+        <div id="jomla-scrape-review" style="display:none;margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
+          <h3>مراجعة قبل الحفظ</h3>
+          <label>العنوان</label>
+          <input id="jomla-scrape-title" style="width:100%"/>
+          <label>الوصف</label>
+          <textarea id="jomla-scrape-desc" rows="3" style="width:100%"></textarea>
+          <label>السعر (ريال)</label>
+          <input id="jomla-scrape-price" type="number" step="0.01"/>
+          <label>التصنيف</label>
+          <select id="jomla-scrape-category"></select>
+          <label>الصور (اختر ما تريد حفظه)</label>
+          <div id="jomla-scrape-images" style="display:flex;flex-wrap:wrap;gap:10px;margin:10px 0"></div>
+          <div class="modal-btns">
+            <button class="btn btn-primary" style="flex:1" onclick="confirmJomlaScrapeSave()">حفظ كمسودة</button>
+            <button class="btn btn-gray" onclick="cancelJomlaScrapeReview()">إلغاء</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- مجموعة كاملة -->
+      <div id="jomla-scrape-collection-panel" style="display:none">
+        <h3>🔗 سحب مجموعة كاملة من رابط تصنيف</h3>
+        <p style="font-size:13px;color:var(--gray);margin-bottom:14px">
+          الصق رابط صفحة مجموعة/تصنيف (يحتوي على عشرات المنتجات) — مدعوم حالياً لمتاجر شوبيفاي فقط.
+          سيتم سحب كل المنتجات وعرضها لتختار أيها تحفظ.
+        </p>
+        <label>رابط المجموعة</label>
+        <input id="jomla-scrape-collection-url" placeholder="https://example.com/collections/..." style="width:100%"/>
+        <button class="btn btn-primary" style="margin-top:12px" onclick="runJomlaCollectionScraper()" id="jomla-scrape-collection-btn">سحب المجموعة</button>
+
+        <div id="jomla-scrape-collection-review" style="display:none;margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:10px">
+            <h3 id="jomla-scrape-collection-count" style="margin:0"></h3>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn btn-gray btn-sm" onclick="toggleAllJomlaCollectionProducts(true)">تحديد الكل</button>
+              <button class="btn btn-gray btn-sm" onclick="toggleAllJomlaCollectionProducts(false)">إلغاء الكل</button>
+            </div>
+          </div>
+          <label>التصنيف لكل المنتجات المحددة</label>
+          <select id="jomla-scrape-collection-category"></select>
+          <div id="jomla-scrape-collection-list" style="display:flex;flex-direction:column;gap:10px;margin:14px 0;max-height:500px;overflow-y:auto"></div>
+          <div class="modal-btns">
+            <button class="btn btn-primary" style="flex:1" onclick="confirmJomlaCollectionScrapeSave()" id="jomla-scrape-collection-save-btn">حفظ المحدد كمسودات</button>
+            <button class="btn btn-gray" onclick="cancelJomlaCollectionScrapeReview()">إلغاء</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- السلال -->
+  <div id="jomla-section-orders" style="display:none">
+    <p style="font-size:13px;color:var(--gray);margin-bottom:14px">
+      عرض سلال متجر الجملة الحالية (لا يوجد دفع فعلي بعد — هذي مرحلة عرض فقط)
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>رقم السلة</th>
+            <th>عدد القطع</th>
+            <th>الإجمالي</th>
+            <th>آخر تحديث</th>
+          </tr>
+        </thead>
+        <tbody id="jomla-orders-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
 <!-- ── تبويب: الصفحة الرئيسية (drrose-sa.com) ── -->
 <div class="content" id="tab-landing" style="display:none">
 
@@ -839,6 +984,55 @@
   </div>
 </div>
 
+<!-- ── مودال: منتج جملة جديد/تعديل ── -->
+<div class="modal-bg" id="modal-jomla-product">
+  <div class="modal" style="max-width:520px">
+    <h3 id="jomla-product-modal-title">➕ منتج جملة جديد</h3>
+    <input type="hidden" id="jomla-prod-id"/>
+    <label>اسم المنتج</label>
+    <input id="jomla-prod-name" placeholder="كرتون ورد جملة"/>
+    <label>الوصف</label>
+    <textarea id="jomla-prod-desc" rows="3" style="width:100%"></textarea>
+    <div style="display:flex;gap:10px">
+      <div style="flex:1">
+        <label>سعر الجملة (ريال)</label>
+        <input id="jomla-prod-price" type="number" step="0.01"/>
+      </div>
+      <div style="flex:1">
+        <label>السعر قبل الخصم (اختياري)</label>
+        <input id="jomla-prod-compare-price" type="number" step="0.01" placeholder="اتركه فاضي بدون خصم"/>
+      </div>
+    </div>
+    <label>التصنيف</label>
+    <select id="jomla-prod-category"></select>
+    <label>شارة الحالة (اختياري)</label>
+    <input id="jomla-prod-stock-note" placeholder="مثال: متوفر، حد أدنى 10 كراتين"/>
+    <label>الصور</label>
+    <div id="jomla-prod-images" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"></div>
+    <input type="file" id="jomla-prod-image-file" accept="image/*" multiple/>
+    <div class="modal-btns">
+      <button class="btn btn-primary" style="flex:1" onclick="saveJomlaProduct()">حفظ</button>
+      <button class="btn btn-gray" onclick="closeModal('modal-jomla-product')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── مودال: تصنيف جملة جديد/تعديل ── -->
+<div class="modal-bg" id="modal-jomla-category">
+  <div class="modal">
+    <h3 id="jomla-category-modal-title">➕ تصنيف جملة جديد</h3>
+    <input type="hidden" id="jomla-cat-id"/>
+    <label>اسم التصنيف</label>
+    <input id="jomla-cat-name" placeholder="ورد جملة"/>
+    <label>الوصف (اختياري)</label>
+    <input id="jomla-cat-desc"/>
+    <div class="modal-btns">
+      <button class="btn btn-primary" style="flex:1" onclick="saveJomlaCategory()">حفظ</button>
+      <button class="btn btn-gray" onclick="closeModal('modal-jomla-category')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -929,15 +1123,16 @@ function logout() {
 
 // ── تبويبات ────────────────────────────────────────────────────
 function showTab(name) {
-  ['scan','customers','notify','settings','store','landing'].forEach(t => {
+  ['scan','customers','notify','settings','store','jomla','landing'].forEach(t => {
     document.getElementById(`tab-${t}`).style.display = t===name ? '' : 'none';
   });
   document.querySelectorAll('.tab').forEach((el,i) => {
-    el.classList.toggle('active', ['scan','customers','notify','settings','store','landing'][i] === name);
+    el.classList.toggle('active', ['scan','customers','notify','settings','store','jomla','landing'][i] === name);
   });
   if (name === 'notify') loadNotifLog();
   if (name === 'settings' && !settingsLoaded) { settingsLoaded = true; loadSettings(); }
   if (name === 'store' && !storeLoaded) { storeLoaded = true; loadStoreProducts(); loadStoreCategories(); }
+  if (name === 'jomla' && !jomlaLoaded) { jomlaLoaded = true; loadJomlaProducts(); loadJomlaCategories(); }
   if (name === 'landing' && !landingLoaded) { landingLoaded = true; loadLandingSettings(); }
 }
 
@@ -1626,6 +1821,7 @@ function toggleLang() {
 let settingsLoaded = false;
 let storeLoaded = false;
 let landingLoaded = false;
+let jomlaLoaded = false;
 
 // ── مساعدات ────────────────────────────────────────────────────
 function closeModal(id) { document.getElementById(id).classList.remove('open') }
@@ -2177,6 +2373,434 @@ async function loadStoreOrders() {
     const res = await fetch(`${API}/admin/store/orders`);
     const carts = await res.json();
     const tbody = document.getElementById('store-orders-table');
+    if (!carts.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:#aaa">لا توجد سلال حالياً</td></tr>'; return; }
+    tbody.innerHTML = carts.map(c => `
+      <tr>
+        <td>#${c.id}</td>
+        <td>${c.item_count}</td>
+        <td>${Number(c.total).toFixed(2)} SAR</td>
+        <td>${new Date(c.updated_at).toLocaleString('ar-SA')}</td>
+      </tr>
+    `).join('');
+  } catch (err) { toast('❌ تعذر تحميل السلال'); }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  متجر الجملة — منتجات / تصنيفات / سكرابر / سلال
+// ═══════════════════════════════════════════════════════════════════
+let jomlaProducts = [];
+let jomlaCategories = [];
+let jomlaScrapedData = null;
+
+function showJomlaSection(name) {
+  ['products','categories','scraper','orders'].forEach(s => {
+    document.getElementById(`jomla-section-${s}`).style.display = s===name ? '' : 'none';
+  });
+  document.querySelectorAll('.store-subtab').forEach((el,i) => {
+    el.classList.toggle('active', ['products','categories','scraper','orders'][i] === name);
+  });
+  if (name === 'orders') loadJomlaOrders();
+}
+
+// escapeHtmlAdmin مُعرّفة مسبقاً بقسم المتجر (نفس الدالة بالضبط، لا حاجة لتكرارها)
+
+// ── منتجات ──────────────────────────────────────────────────────
+async function loadJomlaProducts() {
+  try {
+    const res = await fetch(`${API}/admin/jomla/products`);
+    jomlaProducts = await res.json();
+    renderJomlaProducts(jomlaProducts);
+  } catch (err) { toast('❌ تعذر تحميل المنتجات'); }
+}
+
+function filterJomlaProducts() {
+  const q = document.getElementById('jomla-prod-search').value.trim();
+  if (!q) return renderJomlaProducts(jomlaProducts);
+  renderJomlaProducts(jomlaProducts.filter(p => (p.name||'').includes(q)));
+}
+
+function renderJomlaProducts(list) {
+  const tbody = document.getElementById('jomla-prod-table');
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#aaa">لا توجد منتجات</td></tr>'; return; }
+  tbody.innerHTML = list.map(p => `
+    <tr>
+      <td>${p.image_id ? `<img class="prod-thumb" src="${API}/jomla/product-image/${p.image_id}">` : '—'}</td>
+      <td>${escapeHtmlAdmin(p.name)}</td>
+      <td>${escapeHtmlAdmin(p.category_name || '—')}</td>
+      <td>
+        ${p.price} ${escapeHtmlAdmin(p.currency||'SAR')}
+        ${p.compare_at_price && Number(p.compare_at_price) > Number(p.price) ? `<br><span style="color:var(--gray);font-size:12px;text-decoration:line-through">${p.compare_at_price}</span>` : ''}
+      </td>
+      <td>
+        <span style="padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;
+          background:${p.status==='published'?'#e8f5e9':'#fff3e0'};color:${p.status==='published'?'#2e7d32':'#e65100'}">
+          ${p.status==='published' ? 'منشور' : 'مسودة'}
+        </span>
+      </td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-gray btn-sm" onclick="openEditJomlaProduct(${p.id})">تعديل</button>
+        <button class="btn btn-primary btn-sm" onclick="toggleJomlaProductPublish(${p.id}, '${p.status}')">${p.status==='published' ? 'إلغاء النشر' : 'نشر'}</button>
+        <button class="btn btn-warn btn-sm" onclick="deleteJomlaProduct(${p.id})">حذف</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function fillJomlaCategorySelect(selectEl, selectedId) {
+  selectEl.innerHTML = '<option value="">— بدون تصنيف —</option>' +
+    jomlaCategories.map(c => `<option value="${c.id}" ${c.id==selectedId?'selected':''}>${escapeHtmlAdmin(c.name)}</option>`).join('');
+}
+
+function openAddJomlaProduct() {
+  document.getElementById('jomla-product-modal-title').textContent = '➕ منتج جديد';
+  document.getElementById('jomla-prod-id').value = '';
+  document.getElementById('jomla-prod-name').value = '';
+  document.getElementById('jomla-prod-desc').value = '';
+  document.getElementById('jomla-prod-price').value = '';
+  document.getElementById('jomla-prod-compare-price').value = '';
+  document.getElementById('jomla-prod-stock-note').value = '';
+  document.getElementById('jomla-prod-images').innerHTML = '';
+  document.getElementById('jomla-prod-image-file').value = '';
+  fillJomlaCategorySelect(document.getElementById('jomla-prod-category'), '');
+  document.getElementById('modal-jomla-product').classList.add('open');
+}
+
+async function openEditJomlaProduct(id) {
+  const res = await fetch(`${API}/admin/jomla/products/${id}`);
+  const p = await res.json();
+  document.getElementById('jomla-product-modal-title').textContent = '✏️ تعديل المنتج';
+  document.getElementById('jomla-prod-id').value = p.id;
+  document.getElementById('jomla-prod-name').value = p.name;
+  document.getElementById('jomla-prod-desc').value = p.description || '';
+  document.getElementById('jomla-prod-price').value = p.price;
+  document.getElementById('jomla-prod-compare-price').value = p.compare_at_price || '';
+  document.getElementById('jomla-prod-stock-note').value = p.stock_note || '';
+  fillJomlaCategorySelect(document.getElementById('jomla-prod-category'), p.category_id);
+  document.getElementById('jomla-prod-images').innerHTML = (p.images||[]).map(img => `
+    <div style="position:relative">
+      <img class="prod-thumb" style="width:60px;height:60px" src="${API}/jomla/product-image/${img.id}">
+      <button onclick="deleteJomlaProductImage(${p.id},${img.id})" style="position:absolute;top:-6px;left:-6px;background:#c62828;color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:11px;cursor:pointer">✕</button>
+    </div>
+  `).join('');
+  document.getElementById('jomla-prod-image-file').value = '';
+  document.getElementById('modal-jomla-product').classList.add('open');
+}
+
+async function deleteJomlaProductImage(productId, imageId) {
+  await fetch(`${API}/admin/jomla/products/${productId}/images/${imageId}`, { method: 'DELETE' });
+  openEditJomlaProduct(productId);
+}
+
+async function saveJomlaProduct() {
+  const id = document.getElementById('jomla-prod-id').value;
+  const name = document.getElementById('jomla-prod-name').value.trim();
+  const description = document.getElementById('jomla-prod-desc').value.trim();
+  const price = parseFloat(document.getElementById('jomla-prod-price').value) || 0;
+  const compareAtPrice = parseFloat(document.getElementById('jomla-prod-compare-price').value) || null;
+  const stockNote = document.getElementById('jomla-prod-stock-note').value.trim() || null;
+  const categoryId = document.getElementById('jomla-prod-category').value || null;
+  if (!name) { toast('اسم المنتج مطلوب'); return; }
+
+  let productId = id;
+  if (id) {
+    await fetch(`${API}/admin/jomla/products/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description, price, compareAtPrice, categoryId, stockNote }),
+    });
+  } else {
+    const res = await fetch(`${API}/admin/jomla/products`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description, price, compareAtPrice, categoryId, stockNote }),
+    });
+    const data = await res.json();
+    productId = data.id;
+  }
+
+  const fileInput = document.getElementById('jomla-prod-image-file');
+  if (fileInput.files.length) {
+    const fd = new FormData();
+    Array.from(fileInput.files).forEach(f => fd.append('images', f));
+    await fetch(`${API}/admin/jomla/products/${productId}/images`, { method: 'POST', body: fd });
+  }
+
+  toast('✅ تم الحفظ');
+  closeModal('modal-jomla-product');
+  loadJomlaProducts();
+}
+
+async function toggleJomlaProductPublish(id, currentStatus) {
+  const newStatus = currentStatus === 'published' ? 'draft' : 'published';
+  await fetch(`${API}/admin/jomla/products/${id}/publish`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: newStatus }),
+  });
+  toast(newStatus === 'published' ? '✅ تم النشر' : '↩️ تم إلغاء النشر');
+  loadJomlaProducts();
+}
+
+async function deleteJomlaProduct(id) {
+  await fetch(`${API}/admin/jomla/products/${id}`, { method: 'DELETE' });
+  toast('🗑️ تم الحذف');
+  loadJomlaProducts();
+}
+
+// ── تصنيفات ──────────────────────────────────────────────────────
+async function loadJomlaCategories() {
+  try {
+    const res = await fetch(`${API}/admin/jomla/categories`);
+    jomlaCategories = await res.json();
+    renderJomlaCategories();
+  } catch (err) { toast('❌ تعذر تحميل التصنيفات'); }
+}
+
+function renderJomlaCategories() {
+  const tbody = document.getElementById('jomla-cat-table');
+  if (!jomlaCategories.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:#aaa">لا توجد تصنيفات</td></tr>'; return; }
+  tbody.innerHTML = jomlaCategories.map(c => `
+    <tr>
+      <td>${escapeHtmlAdmin(c.name)}</td>
+      <td style="color:var(--gray);font-size:13px">${escapeHtmlAdmin(c.slug)}</td>
+      <td>${c.active ? '✅' : '—'}</td>
+      <td style="display:flex;gap:6px">
+        <button class="btn btn-gray btn-sm" onclick="openEditJomlaCategory(${c.id})">تعديل</button>
+        <button class="btn btn-warn btn-sm" onclick="deleteJomlaCategory(${c.id})">حذف</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openAddJomlaCategory() {
+  document.getElementById('jomla-category-modal-title').textContent = '➕ تصنيف جديد';
+  document.getElementById('jomla-cat-id').value = '';
+  document.getElementById('jomla-cat-name').value = '';
+  document.getElementById('jomla-cat-desc').value = '';
+  document.getElementById('modal-jomla-category').classList.add('open');
+}
+
+function openEditJomlaCategory(id) {
+  const c = jomlaCategories.find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('jomla-category-modal-title').textContent = '✏️ تعديل التصنيف';
+  document.getElementById('jomla-cat-id').value = c.id;
+  document.getElementById('jomla-cat-name').value = c.name;
+  document.getElementById('jomla-cat-desc').value = c.description || '';
+  document.getElementById('modal-jomla-category').classList.add('open');
+}
+
+async function saveJomlaCategory() {
+  const id = document.getElementById('jomla-cat-id').value;
+  const name = document.getElementById('jomla-cat-name').value.trim();
+  const description = document.getElementById('jomla-cat-desc').value.trim();
+  if (!name) { toast('اسم التصنيف مطلوب'); return; }
+
+  if (id) {
+    await fetch(`${API}/admin/jomla/categories/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description }),
+    });
+  } else {
+    await fetch(`${API}/admin/jomla/categories`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description }),
+    });
+  }
+  toast('✅ تم الحفظ');
+  closeModal('modal-jomla-category');
+  loadJomlaCategories();
+}
+
+async function deleteJomlaCategory(id) {
+  await fetch(`${API}/admin/jomla/categories/${id}`, { method: 'DELETE' });
+  toast('🗑️ تم الحذف');
+  loadJomlaCategories();
+}
+
+// ── السكرابر ──────────────────────────────────────────────────────
+async function runJomlaScraper() {
+  const url = document.getElementById('jomla-scrape-url').value.trim();
+  if (!url) { toast('الرابط مطلوب'); return; }
+  const btn = document.getElementById('jomla-scrape-btn');
+  btn.disabled = true;
+  btn.textContent = 'جاري السحب...';
+  try {
+    const res = await fetch(`${API}/admin/jomla/scrape`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    const data = await res.json();
+    if (data.error) { toast('❌ ' + data.error); return; }
+    jomlaScrapedData = data;
+    jomlaScrapedData.selectedImages = new Set(data.images || []);
+
+    document.getElementById('jomla-scrape-title').value = data.title || '';
+    document.getElementById('jomla-scrape-desc').value = data.description || '';
+    document.getElementById('jomla-scrape-price').value = data.price || '';
+    fillJomlaCategorySelect(document.getElementById('jomla-scrape-category'), '');
+
+    document.getElementById('jomla-scrape-images').innerHTML = (data.images||[]).map((img,i) => `
+      <div class="scrape-img-choice selected" data-url="${escapeHtmlAdmin(img)}" onclick="toggleJomlaScrapeImage(this)">
+        <img src="${img}">
+        <div class="check">✓</div>
+      </div>
+    `).join('');
+
+    document.getElementById('jomla-scrape-review').style.display = 'block';
+    toast('✅ تم سحب البيانات — راجعها قبل الحفظ');
+  } catch (err) {
+    toast('❌ فشل الاتصال بالسكرابر');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'سحب البيانات';
+  }
+}
+
+function toggleJomlaScrapeImage(el) {
+  const url = el.dataset.url;
+  el.classList.toggle('selected');
+  if (el.classList.contains('selected')) jomlaScrapedData.selectedImages.add(url);
+  else jomlaScrapedData.selectedImages.delete(url);
+}
+
+function cancelJomlaScrapeReview() {
+  document.getElementById('jomla-scrape-review').style.display = 'none';
+  document.getElementById('jomla-scrape-url').value = '';
+  jomlaScrapedData = null;
+}
+
+async function confirmJomlaScrapeSave() {
+  if (!jomlaScrapedData) return;
+  const title = document.getElementById('jomla-scrape-title').value.trim();
+  const description = document.getElementById('jomla-scrape-desc').value.trim();
+  const price = parseFloat(document.getElementById('jomla-scrape-price').value) || 0;
+  const categoryId = document.getElementById('jomla-scrape-category').value || null;
+  const images = Array.from(jomlaScrapedData.selectedImages || []);
+  if (!title) { toast('العنوان مطلوب'); return; }
+
+  try {
+    const res = await fetch(`${API}/admin/jomla/scrape/confirm`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, description, price, currency: jomlaScrapedData.currency, categoryId, images, sourceUrl: jomlaScrapedData.sourceUrl }),
+    });
+    const data = await res.json();
+    if (data.error) { toast('❌ ' + data.error); return; }
+    toast(`✅ تم الحفظ كمسودة — راجعها في تبويب المنتجات قبل النشر`);
+    cancelJomlaScrapeReview();
+    loadJomlaProducts();
+    showJomlaSection('products');
+  } catch (err) {
+    toast('❌ فشل الحفظ');
+  }
+}
+
+// ── وضع السحب: منتج واحد / مجموعة ─────────────────────────────────
+function setJomlaScrapeMode(mode) {
+  document.getElementById('jomla-scrape-mode-single').classList.toggle('active', mode === 'single');
+  document.getElementById('jomla-scrape-mode-collection').classList.toggle('active', mode === 'collection');
+  document.getElementById('jomla-scrape-single-panel').style.display = mode === 'single' ? '' : 'none';
+  document.getElementById('jomla-scrape-collection-panel').style.display = mode === 'collection' ? '' : 'none';
+}
+
+// ── سحب مجموعة كاملة ───────────────────────────────────────────────
+let jomlaCollectionScrapedData = null;
+
+async function runJomlaCollectionScraper() {
+  const url = document.getElementById('jomla-scrape-collection-url').value.trim();
+  if (!url) { toast('الرابط مطلوب'); return; }
+  const btn = document.getElementById('jomla-scrape-collection-btn');
+  btn.disabled = true;
+  btn.textContent = 'جاري السحب... قد يستغرق دقيقة';
+  try {
+    const res = await fetch(`${API}/admin/jomla/scrape-collection`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    const data = await res.json();
+    if (data.error) { toast('❌ ' + data.error); return; }
+    jomlaCollectionScrapedData = data;
+    jomlaCollectionScrapedData.selected = new Set(data.products.map((_, i) => i));
+
+    document.getElementById('jomla-scrape-collection-count').textContent = `تم سحب ${data.count} منتج`;
+    fillJomlaCategorySelect(document.getElementById('jomla-scrape-collection-category'), '');
+    renderJomlaCollectionList();
+    document.getElementById('jomla-scrape-collection-review').style.display = 'block';
+    toast(`✅ تم سحب ${data.count} منتج — راجعها قبل الحفظ`);
+  } catch (err) {
+    toast('❌ فشل الاتصال بالسكرابر');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'سحب المجموعة';
+  }
+}
+
+function renderJomlaCollectionList() {
+  const list = document.getElementById('jomla-scrape-collection-list');
+  list.innerHTML = jomlaCollectionScrapedData.products.map((p, i) => {
+    const checked = jomlaCollectionScrapedData.selected.has(i);
+    const thumb = p.images && p.images[0] ? p.images[0] : '';
+    return `
+      <label style="display:flex;gap:12px;align-items:center;padding:10px;border:1px solid var(--border);border-radius:12px;cursor:pointer;background:${checked?'#fff':'#f7f7f7'}">
+        <input type="checkbox" ${checked?'checked':''} onchange="toggleJomlaCollectionProduct(${i}, this.checked)" style="width:18px;height:18px;flex-shrink:0"/>
+        ${thumb ? `<img src="${thumb}" style="width:50px;height:50px;object-fit:cover;border-radius:8px;flex-shrink:0">` : '<div style="width:50px;height:50px;background:var(--pink-light);border-radius:8px;flex-shrink:0"></div>'}
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtmlAdmin(p.title)}</div>
+          <div style="font-size:13px;color:var(--pink);font-weight:700">${p.price != null ? p.price + ' ' + (p.currency||'SAR') : 'بدون سعر'}</div>
+        </div>
+      </label>
+    `;
+  }).join('');
+}
+
+function toggleJomlaCollectionProduct(i, checked) {
+  if (checked) jomlaCollectionScrapedData.selected.add(i);
+  else jomlaCollectionScrapedData.selected.delete(i);
+}
+
+function toggleAllJomlaCollectionProducts(select) {
+  if (!jomlaCollectionScrapedData) return;
+  jomlaCollectionScrapedData.selected = select ? new Set(jomlaCollectionScrapedData.products.map((_, i) => i)) : new Set();
+  renderJomlaCollectionList();
+}
+
+function cancelJomlaCollectionScrapeReview() {
+  document.getElementById('jomla-scrape-collection-review').style.display = 'none';
+  document.getElementById('jomla-scrape-collection-url').value = '';
+  jomlaCollectionScrapedData = null;
+}
+
+async function confirmJomlaCollectionScrapeSave() {
+  if (!jomlaCollectionScrapedData) return;
+  const categoryId = document.getElementById('jomla-scrape-collection-category').value || null;
+  const selectedProducts = jomlaCollectionScrapedData.products.filter((_, i) => jomlaCollectionScrapedData.selected.has(i));
+  if (!selectedProducts.length) { toast('اختر منتج واحد على الأقل'); return; }
+
+  const btn = document.getElementById('jomla-scrape-collection-save-btn');
+  btn.disabled = true;
+  btn.textContent = `جاري حفظ ${selectedProducts.length} منتج...`;
+  try {
+    const res = await fetch(`${API}/admin/jomla/scrape-collection/confirm`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ products: selectedProducts, categoryId }),
+    });
+    const data = await res.json();
+    if (data.error) { toast('❌ ' + data.error); return; }
+    toast(`✅ تم حفظ ${data.savedCount} منتج كمسودات${data.failedCount ? ` (فشل ${data.failedCount})` : ''} — راجعها في تبويب المنتجات قبل النشر`);
+    cancelJomlaCollectionScrapeReview();
+    loadJomlaProducts();
+    showJomlaSection('products');
+  } catch (err) {
+    toast('❌ فشل الحفظ');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'حفظ المحدد كمسودات';
+  }
+}
+
+// ── السلال ──────────────────────────────────────────────────────
+async function loadJomlaOrders() {
+  try {
+    const res = await fetch(`${API}/admin/jomla/orders`);
+    const carts = await res.json();
+    const tbody = document.getElementById('jomla-orders-table');
     if (!carts.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:#aaa">لا توجد سلال حالياً</td></tr>'; return; }
     tbody.innerHTML = carts.map(c => `
       <tr>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>السلة — متجر الجملة</title>
+<link rel="icon" href="/images/drrose-logo-small.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/jomla/jomla.css">
+</head>
+<body>
+<header class="store-header">
+  <a href="/jomla" class="store-logo"><img src="/images/drrose-logo-small.png" alt="دورو"></a>
+  <a href="/jomla" class="cart-link">متابعة التسوق</a>
+</header>
+
+<main class="cart-page">
+  <h1>سلة الجملة</h1>
+  <div id="cart-items"><div class="empty-state">جاري التحميل...</div></div>
+</main>
+
+<script>
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+async function loadCart() {
+  const container = document.getElementById('cart-items');
+  try {
+    const res = await fetch('/jomla/api/cart', { credentials: 'include' });
+    const data = await res.json();
+    const items = data.items || [];
+    if (!items.length) {
+      container.innerHTML = '<div class="empty-state">السلة فارغة</div>';
+      return;
+    }
+    container.innerHTML = items.map(i => `
+      <div class="cart-item" data-id="${i.product_id}">
+        <img src="${i.image_id ? '/jomla/product-image/' + i.image_id : ''}" alt="${escapeHtml(i.name)}">
+        <div class="name">${escapeHtml(i.name)}</div>
+        <div class="qty-controls">
+          <button class="qty-minus">−</button>
+          <span class="qty">${i.quantity}</span>
+          <button class="qty-plus">+</button>
+        </div>
+        <div class="line-price">${(i.price * i.quantity).toFixed(2)} ${escapeHtml(data.currency || 'SAR')}</div>
+      </div>
+    `).join('') + `<div class="cart-total"><span>الإجمالي</span><span>${data.total.toFixed(2)} SAR</span></div>`;
+
+    container.querySelectorAll('.cart-item').forEach(row => {
+      const id = row.dataset.id;
+      const qtyEl = row.querySelector('.qty');
+      row.querySelector('.qty-plus').onclick = () => updateQty(id, parseInt(qtyEl.textContent) + 1);
+      row.querySelector('.qty-minus').onclick = () => updateQty(id, parseInt(qtyEl.textContent) - 1);
+    });
+  } catch (err) {
+    container.innerHTML = '<div class="empty-state">تعذر تحميل السلة</div>';
+  }
+}
+
+async function updateQty(productId, quantity) {
+  await fetch('/jomla/api/cart/update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ productId: Number(productId), quantity }),
+  });
+  loadCart();
+}
+
+loadCart();
+</script>
+</body>
+</html>
