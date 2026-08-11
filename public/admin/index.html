@@ -695,10 +695,20 @@
     <input id="prod-name" placeholder="باقة ورد جوري"/>
     <label>الوصف</label>
     <textarea id="prod-desc" rows="3" style="width:100%"></textarea>
-    <label>السعر (ريال)</label>
-    <input id="prod-price" type="number" step="0.01"/>
+    <div style="display:flex;gap:10px">
+      <div style="flex:1">
+        <label>السعر (ريال)</label>
+        <input id="prod-price" type="number" step="0.01"/>
+      </div>
+      <div style="flex:1">
+        <label>السعر قبل الخصم (اختياري)</label>
+        <input id="prod-compare-price" type="number" step="0.01" placeholder="اتركه فاضي بدون خصم"/>
+      </div>
+    </div>
     <label>التصنيف</label>
     <select id="prod-category"></select>
+    <label>شارة الحالة (اختياري)</label>
+    <input id="prod-stock-note" placeholder="مثال: زهور متفتحة، باقي 3 فقط، ينفد بسرعة"/>
     <label>الصور</label>
     <div id="prod-images" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"></div>
     <input type="file" id="prod-image-file" accept="image/*" multiple/>
@@ -1687,7 +1697,10 @@ function renderStoreProducts(list) {
       <td>${p.image_id ? `<img class="prod-thumb" src="${API}/store/product-image/${p.image_id}">` : '—'}</td>
       <td>${escapeHtmlAdmin(p.name)}</td>
       <td>${escapeHtmlAdmin(p.category_name || '—')}</td>
-      <td>${p.price} ${escapeHtmlAdmin(p.currency||'SAR')}</td>
+      <td>
+        ${p.price} ${escapeHtmlAdmin(p.currency||'SAR')}
+        ${p.compare_at_price && Number(p.compare_at_price) > Number(p.price) ? `<br><span style="color:var(--gray);font-size:12px;text-decoration:line-through">${p.compare_at_price}</span>` : ''}
+      </td>
       <td>
         <span style="padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;
           background:${p.status==='published'?'#e8f5e9':'#fff3e0'};color:${p.status==='published'?'#2e7d32':'#e65100'}">
@@ -1714,6 +1727,8 @@ function openAddProduct() {
   document.getElementById('prod-name').value = '';
   document.getElementById('prod-desc').value = '';
   document.getElementById('prod-price').value = '';
+  document.getElementById('prod-compare-price').value = '';
+  document.getElementById('prod-stock-note').value = '';
   document.getElementById('prod-images').innerHTML = '';
   document.getElementById('prod-image-file').value = '';
   fillCategorySelect(document.getElementById('prod-category'), '');
@@ -1728,6 +1743,8 @@ async function openEditProduct(id) {
   document.getElementById('prod-name').value = p.name;
   document.getElementById('prod-desc').value = p.description || '';
   document.getElementById('prod-price').value = p.price;
+  document.getElementById('prod-compare-price').value = p.compare_at_price || '';
+  document.getElementById('prod-stock-note').value = p.stock_note || '';
   fillCategorySelect(document.getElementById('prod-category'), p.category_id);
   document.getElementById('prod-images').innerHTML = (p.images||[]).map(img => `
     <div style="position:relative">
@@ -1749,6 +1766,8 @@ async function saveProduct() {
   const name = document.getElementById('prod-name').value.trim();
   const description = document.getElementById('prod-desc').value.trim();
   const price = parseFloat(document.getElementById('prod-price').value) || 0;
+  const compareAtPrice = parseFloat(document.getElementById('prod-compare-price').value) || null;
+  const stockNote = document.getElementById('prod-stock-note').value.trim() || null;
   const categoryId = document.getElementById('prod-category').value || null;
   if (!name) { toast('اسم المنتج مطلوب'); return; }
 
@@ -1756,12 +1775,12 @@ async function saveProduct() {
   if (id) {
     await fetch(`${API}/admin/store/products/${id}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, description, price, categoryId }),
+      body: JSON.stringify({ name, description, price, compareAtPrice, categoryId, stockNote }),
     });
   } else {
     const res = await fetch(`${API}/admin/store/products`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, description, price, categoryId }),
+      body: JSON.stringify({ name, description, price, compareAtPrice, categoryId, stockNote }),
     });
     const data = await res.json();
     productId = data.id;

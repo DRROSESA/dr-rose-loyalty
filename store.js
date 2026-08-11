@@ -83,6 +83,8 @@ module.exports = function registerStore(app, getDB, CONFIG) {
         FOREIGN KEY (category_id) REFERENCES store_categories(id) ON DELETE SET NULL
       )
     `);
+    // شارة الحالة تحت اسم المنتج — مثل "زهور متفتحة" أو "باقي 3 فقط" أو "ينفد بسرعة" (نص حر يديره الأدمن)
+    await db.execute(`ALTER TABLE store_products ADD COLUMN IF NOT EXISTS stock_note VARCHAR(60) NULL`).catch(() => {});
     await db.execute(`
       CREATE TABLE IF NOT EXISTS store_product_images (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -171,7 +173,7 @@ module.exports = function registerStore(app, getDB, CONFIG) {
       }
 
       const [rows] = await db.execute(
-        `SELECT p.id, p.name, p.slug, p.price, p.compare_at_price, p.currency,
+        `SELECT p.id, p.name, p.slug, p.price, p.compare_at_price, p.currency, p.stock_note,
                 (SELECT id FROM store_product_images WHERE product_id = p.id ORDER BY is_primary DESC, sort_order LIMIT 1) AS image_id
          FROM store_products p
          LEFT JOIN store_categories c ON c.id = p.category_id
@@ -282,7 +284,11 @@ module.exports = function registerStore(app, getDB, CONFIG) {
   <div class="gallery">${galleryHtml || '<div class="no-image">لا توجد صورة</div>'}</div>
   <div class="info">
     <h1>${title}</h1>
-    <p class="price">${product.price} ${escapeHtml(product.currency || 'SAR')}</p>
+    <div class="price-row">
+      <span class="price ${product.compare_at_price && Number(product.compare_at_price) > Number(product.price) ? 'on-sale' : ''}">${product.price} ${escapeHtml(product.currency || 'SAR')}</span>
+      ${product.compare_at_price && Number(product.compare_at_price) > Number(product.price) ? `<span class="price-compare">${product.compare_at_price} ${escapeHtml(product.currency || 'SAR')}</span>` : ''}
+    </div>
+    ${product.stock_note ? `<span class="stock-note">${escapeHtml(product.stock_note)}</span>` : ''}
     <p class="description">${description}</p>
     <button class="btn-add-cart" data-product-id="${product.id}">أضف إلى السلة</button>
   </div>
@@ -430,14 +436,14 @@ module.exports = function registerStore(app, getDB, CONFIG) {
 
   app.post('/admin/store/products', async (req, res) => {
     try {
-      const { name, description, price, compareAtPrice, categoryId, currency } = req.body;
+      const { name, description, price, compareAtPrice, categoryId, currency, stockNote } = req.body;
       if (!name) return res.status(400).json({ error: 'اسم المنتج مطلوب' });
       const db = await getDB();
       const slug = await uniqueSlug(db, name, 'store_products');
       const [result] = await db.execute(
-        `INSERT INTO store_products (category_id, name, slug, description, price, compare_at_price, currency, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'draft')`,
-        [categoryId || null, name, slug, description || null, price || 0, compareAtPrice || null, currency || 'SAR']
+        `INSERT INTO store_products (category_id, name, slug, description, price, compare_at_price, currency, stock_note, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft')`,
+        [categoryId || null, name, slug, description || null, price || 0, compareAtPrice || null, currency || 'SAR', stockNote || null]
       );
       res.json({ success: true, id: result.insertId, slug });
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -446,11 +452,10 @@ module.exports = function registerStore(app, getDB, CONFIG) {
   app.put('/admin/store/products/:id', async (req, res) => {
     try {
       const db = await getDB();
-      const allowed = ['name', 'description', 'price', 'compare_at_price', 'category_id', 'currency', 'meta_title', 'meta_description'];
       const fieldMap = {
         name: 'name', description: 'description', price: 'price',
         compareAtPrice: 'compare_at_price', categoryId: 'category_id', currency: 'currency',
-        metaTitle: 'meta_title', metaDescription: 'meta_description',
+        metaTitle: 'meta_title', metaDescription: 'meta_description', stockNote: 'stock_note',
       };
       const sets = [];
       const params = [];
