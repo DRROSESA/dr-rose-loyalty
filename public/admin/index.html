@@ -629,41 +629,68 @@
 
 <!-- ── تبويب: الصفحة الرئيسية (drrose-sa.com) ── -->
 <div class="content" id="tab-landing" style="display:none">
-  <div style="max-width:520px">
+
+  <!-- معلومات المتجر -->
+  <div class="notif-card">
     <h3>🏠 إعدادات الصفحة الرئيسية</h3>
-    <p style="font-size:13px;color:var(--gray);margin-bottom:16px">
+    <p style="font-size:13px;color:var(--gray);margin:8px 0 18px">
       هذي البيانات تظهر مباشرة على drrose-sa.com — صفحة الهبوط اللي يشوفها أي زائر قبل ما يدخل المتجر أو بطاقة الولاء.
     </p>
-
-    <label>اسم المتجر</label>
-    <input id="landing-store-name" placeholder="د. روز للورد"/>
-
-    <label>الوصف / الشعار النصي</label>
-    <textarea id="landing-tagline" rows="2" style="width:100%" placeholder="باقات ورد فاخرة توصلك بسرعة"></textarea>
-
-    <label>رقم الهاتف</label>
-    <input id="landing-phone" placeholder="05xxxxxxxx" inputmode="numeric"/>
-
-    <label>رقم واتساب</label>
-    <input id="landing-whatsapp" placeholder="05xxxxxxxx" inputmode="numeric"/>
-
-    <label>حساب إنستقرام (بدون @)</label>
-    <input id="landing-instagram" placeholder="drrose_sa"/>
-
-    <div style="display:flex;align-items:center;gap:10px;margin:16px 0 6px">
-      <input type="checkbox" id="landing-retail-enabled" style="width:18px;height:18px"/>
-      <label style="margin:0">إظهار زر "تسوق الآن" (المتجر بالمفرد)</label>
+    <div style="display:grid;gap:14px">
+      <div>
+        <label style="display:block;font-size:13px;font-weight:700;color:var(--gray);margin-bottom:6px">اسم المتجر</label>
+        <input id="landing-store-name" placeholder="د. روز للورد"
+          style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:11px;font-size:14px;font-family:inherit;outline:none"/>
+      </div>
+      <div>
+        <label style="display:block;font-size:13px;font-weight:700;color:var(--gray);margin-bottom:6px">الوصف / الشعار النصي</label>
+        <textarea id="landing-tagline" rows="2" placeholder="باقات ورد فاخرة توصلك بسرعة"
+          style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:11px;font-size:14px;font-family:inherit;outline:none;resize:vertical"></textarea>
+      </div>
     </div>
-
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-      <input type="checkbox" id="landing-wholesale-enabled" style="width:18px;height:18px"/>
-      <label style="margin:0">تفعيل زر "متجر الجملة"</label>
-    </div>
-    <label>نص زر الجملة عند التعطيل</label>
-    <input id="landing-wholesale-label" placeholder="قريباً"/>
-
-    <button class="btn btn-primary" style="margin-top:16px" onclick="saveLandingSettings()">حفظ</button>
   </div>
+
+  <!-- بيانات التواصل -->
+  <div class="notif-card">
+    <h3>📞 بيانات التواصل</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px">
+      <div>
+        <label style="display:block;font-size:13px;font-weight:700;color:var(--gray);margin-bottom:6px">رقم الهاتف</label>
+        <input id="landing-phone" placeholder="05xxxxxxxx" inputmode="numeric"
+          style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:11px;font-size:14px;font-family:inherit;outline:none"/>
+      </div>
+      <div>
+        <label style="display:block;font-size:13px;font-weight:700;color:var(--gray);margin-bottom:6px">رقم واتساب</label>
+        <input id="landing-whatsapp" placeholder="05xxxxxxxx" inputmode="numeric"
+          style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:11px;font-size:14px;font-family:inherit;outline:none"/>
+      </div>
+      <div style="grid-column:1/-1">
+        <label style="display:block;font-size:13px;font-weight:700;color:var(--gray);margin-bottom:6px">حساب إنستقرام (بدون @)</label>
+        <input id="landing-instagram" placeholder="drrose_sa"
+          style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:11px;font-size:14px;font-family:inherit;outline:none"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- أزرار الصفحة -->
+  <div class="notif-card">
+    <h3>🔘 أزرار الصفحة</h3>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:14px;font-weight:600">إظهار زر "تسوق الآن" (المتجر بالمفرد)</span>
+      <input type="checkbox" id="landing-retail-enabled" style="width:20px;height:20px;cursor:pointer;accent-color:var(--pink)"/>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0">
+      <span style="font-size:14px;font-weight:600">تفعيل زر "متجر الجملة"</span>
+      <input type="checkbox" id="landing-wholesale-enabled" style="width:20px;height:20px;cursor:pointer;accent-color:var(--pink)"/>
+    </div>
+    <div style="margin-top:8px">
+      <label style="display:block;font-size:13px;font-weight:700;color:var(--gray);margin-bottom:6px">نص زر الجملة عند التعطيل</label>
+      <input id="landing-wholesale-label" placeholder="قريباً"
+        style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:11px;font-size:14px;font-family:inherit;outline:none"/>
+    </div>
+  </div>
+
+  <button class="btn btn-primary" onclick="saveLandingSettings()">💾 حفظ التغييرات</button>
 </div>
 
 <!-- ── مودال: عميل جديد ── -->
