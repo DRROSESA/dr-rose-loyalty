@@ -314,7 +314,7 @@ module.exports = function registerStore(app, getDB, CONFIG) {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/store/store.css?v=3">
+<link rel="stylesheet" href="/store/store.css?v=4">
 <script type="application/ld+json">${jsonLd}</script>
 </head>
 <body>
