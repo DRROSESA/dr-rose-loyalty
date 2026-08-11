@@ -119,6 +119,24 @@ module.exports = function registerStore(app, getDB, CONFIG) {
         FOREIGN KEY (product_id) REFERENCES store_products(id) ON DELETE CASCADE
       )
     `);
+
+    // إعدادات صفحة الهبوط الرئيسية (drrose-sa.com) — صف واحد، تقرأه صفحة index.html على Hostinger مباشرة من القاعدة
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS landing_settings (
+        id INT PRIMARY KEY DEFAULT 1,
+        store_name VARCHAR(255) DEFAULT 'د. روز للورد',
+        tagline TEXT,
+        logo_url VARCHAR(500),
+        phone VARCHAR(50),
+        whatsapp VARCHAR(50),
+        instagram VARCHAR(255),
+        retail_store_enabled TINYINT(1) DEFAULT 1,
+        wholesale_store_enabled TINYINT(1) DEFAULT 0,
+        wholesale_label VARCHAR(100) DEFAULT 'قريباً',
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+    await db.execute(`INSERT IGNORE INTO landing_settings (id) VALUES (1)`);
   }
   let tablesReadyPromise = null;
   function ensureTablesOnce() {
@@ -597,6 +615,42 @@ module.exports = function registerStore(app, getDB, CONFIG) {
         [req.params.cartId]
       );
       res.json(items);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  //  إعدادات صفحة الهبوط (drrose-sa.com)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  app.get('/admin/landing-settings', async (req, res) => {
+    try {
+      const db = await getDB();
+      const [[settings]] = await db.execute(`SELECT * FROM landing_settings WHERE id = 1`);
+      res.json(settings || {});
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.put('/admin/landing-settings', async (req, res) => {
+    try {
+      const db = await getDB();
+      const fieldMap = {
+        storeName: 'store_name', tagline: 'tagline', logoUrl: 'logo_url',
+        phone: 'phone', whatsapp: 'whatsapp', instagram: 'instagram',
+        retailStoreEnabled: 'retail_store_enabled', wholesaleStoreEnabled: 'wholesale_store_enabled',
+        wholesaleLabel: 'wholesale_label',
+      };
+      const sets = [];
+      const params = [];
+      for (const [bodyKey, col] of Object.entries(fieldMap)) {
+        if (req.body[bodyKey] === undefined) continue;
+        let val = req.body[bodyKey];
+        if (bodyKey === 'retailStoreEnabled' || bodyKey === 'wholesaleStoreEnabled') val = val ? 1 : 0;
+        sets.push(`${col} = ?`);
+        params.push(val === '' ? null : val);
+      }
+      if (!sets.length) return res.status(400).json({ error: 'لا يوجد حقول للتحديث' });
+      await db.execute(`UPDATE landing_settings SET ${sets.join(', ')} WHERE id = 1`, params);
+      res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 

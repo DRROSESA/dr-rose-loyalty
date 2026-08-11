@@ -236,6 +236,7 @@
     <div class="tab" onclick="showTab('notify')" data-i18n="tab_notify">🔔 الإشعارات</div>
     <div class="tab" onclick="showTab('settings')" data-i18n="tab_settings">⚙️ الإعدادات</div>
     <div class="tab" onclick="showTab('store')" data-i18n="tab_store">🌹 المتجر</div>
+    <div class="tab" onclick="showTab('landing')" data-i18n="tab_landing">🏠 الصفحة الرئيسية</div>
   </div>
 
   <!-- ── تبويب: تسجيل زيارة ── -->
@@ -626,6 +627,45 @@
 
 </div>
 
+<!-- ── تبويب: الصفحة الرئيسية (drrose-sa.com) ── -->
+<div class="content" id="tab-landing" style="display:none">
+  <div style="max-width:520px">
+    <h3>🏠 إعدادات الصفحة الرئيسية</h3>
+    <p style="font-size:13px;color:var(--gray);margin-bottom:16px">
+      هذي البيانات تظهر مباشرة على drrose-sa.com — صفحة الهبوط اللي يشوفها أي زائر قبل ما يدخل المتجر أو بطاقة الولاء.
+    </p>
+
+    <label>اسم المتجر</label>
+    <input id="landing-store-name" placeholder="د. روز للورد"/>
+
+    <label>الوصف / الشعار النصي</label>
+    <textarea id="landing-tagline" rows="2" style="width:100%" placeholder="باقات ورد فاخرة توصلك بسرعة"></textarea>
+
+    <label>رقم الهاتف</label>
+    <input id="landing-phone" placeholder="05xxxxxxxx" inputmode="numeric"/>
+
+    <label>رقم واتساب</label>
+    <input id="landing-whatsapp" placeholder="05xxxxxxxx" inputmode="numeric"/>
+
+    <label>حساب إنستقرام (بدون @)</label>
+    <input id="landing-instagram" placeholder="drrose_sa"/>
+
+    <div style="display:flex;align-items:center;gap:10px;margin:16px 0 6px">
+      <input type="checkbox" id="landing-retail-enabled" style="width:18px;height:18px"/>
+      <label style="margin:0">إظهار زر "تسوق الآن" (المتجر بالمفرد)</label>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <input type="checkbox" id="landing-wholesale-enabled" style="width:18px;height:18px"/>
+      <label style="margin:0">تفعيل زر "متجر الجملة"</label>
+    </div>
+    <label>نص زر الجملة عند التعطيل</label>
+    <input id="landing-wholesale-label" placeholder="قريباً"/>
+
+    <button class="btn btn-primary" style="margin-top:16px" onclick="saveLandingSettings()">حفظ</button>
+  </div>
+</div>
+
 <!-- ── مودال: عميل جديد ── -->
 <div class="modal-bg" id="modal-add">
   <div class="modal">
@@ -862,15 +902,16 @@ function logout() {
 
 // ── تبويبات ────────────────────────────────────────────────────
 function showTab(name) {
-  ['scan','customers','notify','settings','store'].forEach(t => {
+  ['scan','customers','notify','settings','store','landing'].forEach(t => {
     document.getElementById(`tab-${t}`).style.display = t===name ? '' : 'none';
   });
   document.querySelectorAll('.tab').forEach((el,i) => {
-    el.classList.toggle('active', ['scan','customers','notify','settings','store'][i] === name);
+    el.classList.toggle('active', ['scan','customers','notify','settings','store','landing'][i] === name);
   });
   if (name === 'notify') loadNotifLog();
   if (name === 'settings' && !settingsLoaded) { settingsLoaded = true; loadSettings(); }
   if (name === 'store' && !storeLoaded) { storeLoaded = true; loadStoreProducts(); loadStoreCategories(); }
+  if (name === 'landing' && !landingLoaded) { landingLoaded = true; loadLandingSettings(); }
 }
 
 // ── تحميل العملاء ──────────────────────────────────────────────
@@ -1557,6 +1598,7 @@ function toggleLang() {
 // showTab يحمّل الإعدادات عند أول دخول
 let settingsLoaded = false;
 let storeLoaded = false;
+let landingLoaded = false;
 
 // ── مساعدات ────────────────────────────────────────────────────
 function closeModal(id) { document.getElementById(id).classList.remove('open') }
@@ -2118,6 +2160,48 @@ async function loadStoreOrders() {
       </tr>
     `).join('');
   } catch (err) { toast('❌ تعذر تحميل السلال'); }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  الصفحة الرئيسية (drrose-sa.com)
+// ═══════════════════════════════════════════════════════════════════
+async function loadLandingSettings() {
+  try {
+    const res = await fetch(`${API}/admin/landing-settings`);
+    const s = await res.json();
+    document.getElementById('landing-store-name').value = s.store_name || '';
+    document.getElementById('landing-tagline').value = s.tagline || '';
+    document.getElementById('landing-phone').value = s.phone || '';
+    document.getElementById('landing-whatsapp').value = s.whatsapp || '';
+    document.getElementById('landing-instagram').value = s.instagram || '';
+    document.getElementById('landing-retail-enabled').checked = !!s.retail_store_enabled;
+    document.getElementById('landing-wholesale-enabled').checked = !!s.wholesale_store_enabled;
+    document.getElementById('landing-wholesale-label').value = s.wholesale_label || 'قريباً';
+  } catch (err) { toast('❌ تعذر تحميل إعدادات الصفحة الرئيسية'); }
+}
+
+async function saveLandingSettings() {
+  const payload = {
+    storeName: document.getElementById('landing-store-name').value.trim(),
+    tagline: document.getElementById('landing-tagline').value.trim(),
+    phone: document.getElementById('landing-phone').value.trim(),
+    whatsapp: document.getElementById('landing-whatsapp').value.trim(),
+    instagram: document.getElementById('landing-instagram').value.trim(),
+    retailStoreEnabled: document.getElementById('landing-retail-enabled').checked,
+    wholesaleStoreEnabled: document.getElementById('landing-wholesale-enabled').checked,
+    wholesaleLabel: document.getElementById('landing-wholesale-label').value.trim() || 'قريباً',
+  };
+  try {
+    const res = await fetch(`${API}/admin/landing-settings`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (data.error) { toast('❌ ' + data.error); return; }
+    toast('✅ تم الحفظ');
+  } catch (err) {
+    toast('❌ فشل الحفظ');
+  }
 }
 </script>
 </body>
