@@ -17,45 +17,83 @@
   <a href="/jomla/cart.html" class="cart-link">السلة <span id="cart-count">🛒</span></a>
 </header>
 
-<nav class="category-bar" id="category-bar">
-  <button class="category-chip active" data-slug="">الكل</button>
-</nav>
+<div id="category-view">
+  <main class="category-grid" id="category-grid">
+    <div class="empty-state">جاري التحميل...</div>
+  </main>
+</div>
 
-<main class="product-grid" id="product-grid">
-  <div class="empty-state">جاري التحميل...</div>
-</main>
+<div id="products-view" style="display:none">
+  <a href="#" class="category-back" id="back-link">→ كل التصنيفات</a>
+  <h2 id="products-title" style="text-align:center;margin:10px 0 0"></h2>
+  <main class="product-grid" id="product-grid"></main>
+</div>
 
 <script>
 const API = '';
+let allCategories = [];
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
 
 async function loadCategories() {
+  const grid = document.getElementById('category-grid');
   try {
     const res = await fetch(API + '/jomla/api/categories');
-    const categories = await res.json();
-    const bar = document.getElementById('category-bar');
-    categories.forEach(c => {
-      const btn = document.createElement('button');
-      btn.className = 'category-chip';
-      btn.textContent = c.name;
-      btn.dataset.slug = c.slug;
-      btn.onclick = () => selectCategory(c.slug, btn);
-      bar.appendChild(btn);
+    allCategories = await res.json();
+    if (!allCategories.length) {
+      grid.innerHTML = '<div class="empty-state">لا توجد تصنيفات حالياً</div>';
+      return;
+    }
+    grid.innerHTML = allCategories.map(c => `
+      <a href="#${encodeURIComponent(c.slug)}" class="category-card" data-slug="${escapeHtml(c.slug)}">
+        <img class="thumb" loading="lazy"
+             src="${c.image_id ? '/jomla/product-image/' + c.image_id : ''}"
+             alt="${escapeHtml(c.name)}"
+             onerror="this.style.background='#fce4ec'">
+        <div class="name">${escapeHtml(c.name)}</div>
+      </a>
+    `).join('');
+    grid.querySelectorAll('.category-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        e.preventDefault();
+        openCategory(card.dataset.slug);
+      });
     });
-  } catch (err) { console.error(err); }
+  } catch (err) {
+    grid.innerHTML = '<div class="empty-state">تعذر تحميل التصنيفات</div>';
+  }
 }
 
-function selectCategory(slug, btnEl) {
-  document.querySelectorAll('.category-chip').forEach(b => b.classList.remove('active'));
-  btnEl.classList.add('active');
+function openCategory(slug) {
+  const cat = allCategories.find(c => c.slug === slug);
+  document.getElementById('category-view').style.display = 'none';
+  document.getElementById('products-view').style.display = '';
+  document.getElementById('products-title').textContent = cat ? cat.name : '';
+  location.hash = encodeURIComponent(slug);
   loadProducts(slug);
 }
+
+function closeCategory() {
+  document.getElementById('products-view').style.display = 'none';
+  document.getElementById('category-view').style.display = '';
+  history.replaceState(null, '', location.pathname);
+}
+
+document.getElementById('back-link').addEventListener('click', (e) => {
+  e.preventDefault();
+  closeCategory();
+});
 
 async function loadProducts(categorySlug) {
   const grid = document.getElementById('product-grid');
   grid.innerHTML = '<div class="empty-state">جاري التحميل...</div>';
   try {
-    const url = new URL(API + '/jomla/api/products', location.origin);
-    if (categorySlug) url.searchParams.set('category', categorySlug);
+    let url = API + '/jomla/api/products';
+    if (categorySlug) url += '?category=' + encodeURIComponent(categorySlug);
     const res = await fetch(url);
     const data = await res.json();
     const products = data.products || [];
@@ -100,12 +138,6 @@ async function loadProducts(categorySlug) {
   }
 }
 
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str || '';
-  return div.innerHTML;
-}
-
 async function addToCart(productId, btnEl) {
   const original = btnEl.textContent;
   btnEl.disabled = true;
@@ -125,8 +157,16 @@ async function addToCart(productId, btnEl) {
   }
 }
 
-loadCategories();
-loadProducts();
+window.addEventListener('hashchange', () => {
+  const slug = decodeURIComponent(location.hash.replace(/^#/, ''));
+  if (slug) openCategory(slug); else closeCategory();
+});
+
+(async function init() {
+  await loadCategories();
+  const slug = decodeURIComponent(location.hash.replace(/^#/, ''));
+  if (slug) openCategory(slug);
+})();
 </script>
 </body>
 </html>

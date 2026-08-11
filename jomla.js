@@ -153,7 +153,14 @@ module.exports = function registerJomlaStore(app, getDB, CONFIG) {
     try {
       const db = await getDB();
       const [rows] = await db.execute(
-        `SELECT id, name, slug, description FROM jomla_categories WHERE active = 1 ORDER BY sort_order, name`
+        `SELECT c.id, c.name, c.slug, c.description,
+                (SELECT pi.id FROM jomla_product_images pi
+                 JOIN jomla_products p ON p.id = pi.product_id
+                 WHERE p.category_id = c.id AND p.status = 'published'
+                 ORDER BY pi.is_primary DESC, pi.sort_order LIMIT 1) AS image_id
+         FROM jomla_categories c
+         WHERE c.active = 1
+         ORDER BY c.sort_order, c.name`
       );
       res.json(rows);
     } catch (err) { res.status(500).json({ error: err.message }); }
