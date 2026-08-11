@@ -18,11 +18,10 @@
 </header>
 
 <div id="category-view">
-  <div class="banner-slider" id="banner-slider"></div>
+  <div class="skeleton-banner" id="banner-skeleton"></div>
+  <div class="banner-slider" id="banner-slider" style="display:none"></div>
   <nav class="breadcrumb"><span class="current">الرئيسية</span></nav>
-  <main class="category-grid" id="category-grid">
-    <div class="empty-state">جاري التحميل...</div>
-  </main>
+  <main class="category-grid" id="category-grid"></main>
 </div>
 
 <div id="products-view" style="display:none">
@@ -45,13 +44,26 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+function skeletonCards(n) {
+  return Array.from({ length: n }).map(() => `
+    <div class="skeleton-card">
+      <div class="skeleton-thumb"></div>
+      <div class="skeleton-line"></div>
+      <div class="skeleton-line short"></div>
+    </div>
+  `).join('');
+}
+
 async function loadBanner() {
+  const skeleton = document.getElementById('banner-skeleton');
   const slider = document.getElementById('banner-slider');
   try {
     const res = await fetch(API + '/jomla/api/products');
     const data = await res.json();
     const images = (data.products || []).filter(p => p.image_id).slice(0, 6);
-    if (!images.length) { slider.style.display = 'none'; return; }
+    skeleton.style.display = 'none';
+    if (!images.length) { return; }
+    slider.style.display = '';
     slider.innerHTML = images.map((p, i) => `
       <img class="slide ${i === 0 ? 'active' : ''}" src="/jomla/product-image/${p.image_id}" alt="${escapeHtml(p.name)}">
     `).join('');
@@ -64,11 +76,12 @@ async function loadBanner() {
         slides[idx].classList.add('active');
       }, 3500);
     }
-  } catch (err) { slider.style.display = 'none'; }
+  } catch (err) { skeleton.style.display = 'none'; }
 }
 
 async function loadCategories() {
   const grid = document.getElementById('category-grid');
+  grid.innerHTML = skeletonCards(5);
   try {
     const res = await fetch(API + '/jomla/api/categories');
     allCategories = await res.json();
@@ -120,7 +133,7 @@ document.getElementById('breadcrumb-home').addEventListener('click', (e) => {
 
 async function loadProducts(categorySlug) {
   const grid = document.getElementById('product-grid');
-  grid.innerHTML = '<div class="empty-state">جاري التحميل...</div>';
+  grid.innerHTML = skeletonCards(6);
   try {
     let url = API + '/jomla/api/products';
     if (categorySlug) url += '?category=' + encodeURIComponent(categorySlug);
