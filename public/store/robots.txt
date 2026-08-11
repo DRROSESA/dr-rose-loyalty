@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /store
+Disallow: /admin
+Sitemap: https://dr-rose-loyalty-production.up.railway.app/store/sitemap.xml

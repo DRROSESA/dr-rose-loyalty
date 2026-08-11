@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>متجر دورو للورد — باقات وهدايا</title>
+<meta name="description" content="تسوق أجمل باقات الورد والهدايا من متجر دورو — تشكيلة متنوعة وتوصيل سريع">
+<link rel="icon" href="/images/drrose-logo-small.png">
+<link rel="stylesheet" href="/store/store.css">
+</head>
+<body>
+<header class="store-header">
+  <a href="/store" class="store-logo"><img src="/images/drrose-logo-small.png" alt="دورو"></a>
+  <a href="/store/cart.html" class="cart-link">السلة <span id="cart-count">🛒</span></a>
+</header>
+
+<nav class="category-bar" id="category-bar">
+  <button class="category-chip active" data-slug="">الكل</button>
+</nav>
+
+<main class="product-grid" id="product-grid">
+  <div class="empty-state">جاري التحميل...</div>
+</main>
+
+<script>
+const API = '';
+
+async function loadCategories() {
+  try {
+    const res = await fetch(API + '/store/api/categories');
+    const categories = await res.json();
+    const bar = document.getElementById('category-bar');
+    categories.forEach(c => {
+      const btn = document.createElement('button');
+      btn.className = 'category-chip';
+      btn.textContent = c.name;
+      btn.dataset.slug = c.slug;
+      btn.onclick = () => selectCategory(c.slug, btn);
+      bar.appendChild(btn);
+    });
+  } catch (err) { console.error(err); }
+}
+
+function selectCategory(slug, btnEl) {
+  document.querySelectorAll('.category-chip').forEach(b => b.classList.remove('active'));
+  btnEl.classList.add('active');
+  loadProducts(slug);
+}
+
+async function loadProducts(categorySlug) {
+  const grid = document.getElementById('product-grid');
+  grid.innerHTML = '<div class="empty-state">جاري التحميل...</div>';
+  try {
+    const url = new URL(API + '/store/api/products', location.origin);
+    if (categorySlug) url.searchParams.set('category', categorySlug);
+    const res = await fetch(url);
+    const data = await res.json();
+    const products = data.products || [];
+    if (!products.length) {
+      grid.innerHTML = '<div class="empty-state">لا توجد منتجات حالياً</div>';
+      return;
+    }
+    grid.innerHTML = products.map(p => `
+      <div class="product-card">
+        <a href="/store/product/${encodeURIComponent(p.slug)}">
+          <img class="thumb" loading="lazy"
+               src="${p.image_id ? '/store/product-image/' + p.image_id : ''}"
+               alt="${escapeHtml(p.name)}"
+               onerror="this.style.background='#fce4ec'">
+        </a>
+        <div class="body">
+          <p class="name">${escapeHtml(p.name)}</p>
+          <p class="price">${p.price} ${escapeHtml(p.currency || 'SAR')}</p>
+          <button class="btn-add" data-id="${p.id}">أضف إلى السلة</button>
+        </div>
+      </div>
+    `).join('');
+
+    grid.querySelectorAll('.btn-add').forEach(btn => {
+      btn.addEventListener('click', () => addToCart(btn.dataset.id, btn));
+    });
+  } catch (err) {
+    grid.innerHTML = '<div class="empty-state">تعذر تحميل المنتجات</div>';
+  }
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+async function addToCart(productId, btnEl) {
+  const original = btnEl.textContent;
+  btnEl.disabled = true;
+  btnEl.textContent = 'جاري الإضافة...';
+  try {
+    await fetch(API + '/store/api/cart/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ productId: Number(productId), quantity: 1 }),
+    });
+    btnEl.textContent = 'تمت الإضافة ✓';
+    setTimeout(() => { btnEl.textContent = original; btnEl.disabled = false; }, 1200);
+  } catch (err) {
+    btnEl.textContent = 'خطأ، حاول مجدداً';
+    btnEl.disabled = false;
+  }
+}
+
+loadCategories();
+loadProducts();
+</script>
+</body>
+</html>
