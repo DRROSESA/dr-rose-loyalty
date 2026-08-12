@@ -335,4 +335,40 @@ async function downloadImageAsBuffer(url) {
   return { buffer, mimeType: contentType.split(';')[0].trim() };
 }
 
-module.exports = { scrapeProductUrl, scrapeCollectionUrl, downloadImageAsBuffer };
+// ─── اكتشاف أقسام المتجر — يدعم Shopify فقط، عبر /collections.json الرسمي ────
+// يقبل أي رابط من نفس المتجر (الرئيسية أو أي صفحة داخلية) ويرجع origin المتجر
+// مع قائمة الأقسام (اسم + رابط كامل + عدد المنتجات) عشان الأدمن يختار منها.
+async function discoverCollections(url) {
+  const u = new URL(url);
+  const origin = u.origin;
+
+  const allCollections = [];
+  const perPage = 250;
+  let page = 1;
+
+  while (allCollections.length < 250) {
+    const jsonUrl = `${origin}/collections.json?limit=${perPage}&page=${page}`;
+    const res = await fetchWithTimeout(jsonUrl, { headers: { 'User-Agent': UA } });
+    if (!res.ok) break;
+    let data;
+    try { data = await res.json(); } catch { break; }
+    if (!data || !Array.isArray(data.collections) || !data.collections.length) break;
+    data.collections.forEach(c => allCollections.push({
+      title: c.title,
+      handle: c.handle,
+      url: `${origin}/collections/${c.handle}`,
+      productsCount: typeof c.products_count === 'number' ? c.products_count : null,
+      image: c.image && c.image.src ? c.image.src : null,
+    }));
+    if (data.collections.length < perPage) break;
+    page++;
+  }
+
+  if (!allCollections.length) {
+    throw new Error('تعذر العثور على أقسام لهذا المتجر — مدعوم حالياً لمتاجر Shopify فقط');
+  }
+
+  return { origin, collections: allCollections };
+}
+
+module.exports = { scrapeProductUrl, scrapeCollectionUrl, downloadImageAsBuffer, discoverCollections };

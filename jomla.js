@@ -2,7 +2,7 @@
 // ملاحظة: لا يوجد حالياً منطق حسابات تجار/موافقة إدارية — هذا يُضاف لاحقاً فوق هذي النسخة.
 const crypto = require('crypto');
 const multer = require('multer');
-const { scrapeProductUrl, scrapeCollectionUrl, downloadImageAsBuffer } = require('./store-scraper');
+const { scrapeProductUrl, scrapeCollectionUrl, downloadImageAsBuffer, discoverCollections } = require('./store-scraper');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -746,8 +746,20 @@ ${renderFooterHtml(siteInfo, '/jomla', 'أسعار جملة على باقات ا
       const { url } = req.body;
       if (!url) return res.status(400).json({ error: 'الرابط مطلوب' });
       const data = await scrapeProductUrl(url);
-      res.json(data);
+      const db = await getDB();
+      const [[existing]] = await db.execute(`SELECT id, name FROM jomla_products WHERE source_url = ?`, [data.sourceUrl]);
+      res.json({ ...data, alreadyImported: existing ? { id: existing.id, name: existing.name } : null });
     } catch (err) { res.status(500).json({ error: err.message || 'فشل سحب البيانات' }); }
+  });
+
+  // اكتشاف أقسام المتجر من رابط الصفحة الرئيسية (أو أي رابط داخلي بنفس المتجر)
+  app.post('/admin/jomla/scrape-collections', async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url) return res.status(400).json({ error: 'الرابط مطلوب' });
+      const data = await discoverCollections(url);
+      res.json(data);
+    } catch (err) { res.status(500).json({ error: err.message || 'فشل اكتشاف الأقسام' }); }
   });
 
   // يحفظ منتج مسحوب واحد كمسودة + يحمّل صوره — تُستخدم من مسار المنتج الواحد ومسار السحب الجماعي
@@ -795,6 +807,14 @@ ${renderFooterHtml(siteInfo, '/jomla', 'أسعار جملة على باقات ا
       const { url } = req.body;
       if (!url) return res.status(400).json({ error: 'الرابط مطلوب' });
       const data = await scrapeCollectionUrl(url);
+      const db = await getDB();
+      const sourceUrls = data.products.map(p => p.sourceUrl).filter(Boolean);
+      let importedMap = {};
+      if (sourceUrls.length) {
+        const [rows] = await db.query(`SELECT id, name, source_url FROM jomla_products WHERE source_url IN (?)`, [sourceUrls]);
+        importedMap = Object.fromEntries(rows.map(r => [r.source_url, { id: r.id, name: r.name }]));
+      }
+      data.products = data.products.map(p => ({ ...p, alreadyImported: importedMap[p.sourceUrl] || null }));
       res.json(data);
     } catch (err) { res.status(500).json({ error: err.message || 'فشل سحب المجموعة' }); }
   });

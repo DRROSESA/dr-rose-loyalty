@@ -558,6 +558,7 @@
 
         <div id="scrape-review" style="display:none;margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
           <h3>مراجعة قبل الحفظ</h3>
+          <div id="scrape-duplicate-warning" style="display:none;background:#fff3e0;color:#e65100;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:700;margin-bottom:14px"></div>
           <label>العنوان</label>
           <input id="scrape-title" style="width:100%"/>
           <label>الوصف</label>
@@ -577,14 +578,19 @@
 
       <!-- مجموعة كاملة -->
       <div id="scrape-collection-panel" style="display:none">
-        <h3>🔗 سحب مجموعة كاملة من رابط تصنيف</h3>
+        <h3>🔗 سحب مجموعة كاملة من متجر</h3>
         <p style="font-size:13px;color:var(--gray);margin-bottom:14px">
-          الصق رابط صفحة مجموعة/تصنيف (يحتوي على عشرات المنتجات) — مدعوم حالياً لمتاجر شوبيفاي فقط.
-          سيتم سحب كل المنتجات وعرضها لتختار أيها تحفظ.
+          الصق رابط المتجر (الصفحة الرئيسية أو أي صفحة داخله) — مدعوم حالياً لمتاجر شوبيفاي فقط.
+          راح تظهر لك أقسام المتجر لتختار القسم اللي تبي تسحبه.
         </p>
-        <label>رابط المجموعة</label>
-        <input id="scrape-collection-url" placeholder="https://example.com/collections/..." style="width:100%"/>
-        <button class="btn btn-primary" style="margin-top:12px" onclick="runCollectionScraper()" id="scrape-collection-btn">سحب المجموعة</button>
+        <label>رابط المتجر</label>
+        <input id="scrape-store-url" placeholder="https://example.com" style="width:100%"/>
+        <button class="btn btn-primary" style="margin-top:12px" onclick="runDiscoverCollections()" id="scrape-discover-btn">اكتشف الأقسام</button>
+
+        <div id="scrape-collections-list-wrap" style="display:none;margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
+          <h3 style="margin:0 0 10px">أقسام المتجر — اختر قسم لسحبه</h3>
+          <div id="scrape-collections-list" style="display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto"></div>
+        </div>
 
         <div id="scrape-collection-review" style="display:none;margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:10px">
@@ -703,6 +709,7 @@
 
         <div id="jomla-scrape-review" style="display:none;margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
           <h3>مراجعة قبل الحفظ</h3>
+          <div id="jomla-scrape-duplicate-warning" style="display:none;background:#fff3e0;color:#e65100;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:700;margin-bottom:14px"></div>
           <label>العنوان</label>
           <input id="jomla-scrape-title" style="width:100%"/>
           <label>الوصف</label>
@@ -722,14 +729,19 @@
 
       <!-- مجموعة كاملة -->
       <div id="jomla-scrape-collection-panel" style="display:none">
-        <h3>🔗 سحب مجموعة كاملة من رابط تصنيف</h3>
+        <h3>🔗 سحب مجموعة كاملة من متجر</h3>
         <p style="font-size:13px;color:var(--gray);margin-bottom:14px">
-          الصق رابط صفحة مجموعة/تصنيف (يحتوي على عشرات المنتجات) — مدعوم حالياً لمتاجر شوبيفاي فقط.
-          سيتم سحب كل المنتجات وعرضها لتختار أيها تحفظ.
+          الصق رابط المتجر (الصفحة الرئيسية أو أي صفحة داخله) — مدعوم حالياً لمتاجر شوبيفاي فقط.
+          راح تظهر لك أقسام المتجر لتختار القسم اللي تبي تسحبه.
         </p>
-        <label>رابط المجموعة</label>
-        <input id="jomla-scrape-collection-url" placeholder="https://example.com/collections/..." style="width:100%"/>
-        <button class="btn btn-primary" style="margin-top:12px" onclick="runJomlaCollectionScraper()" id="jomla-scrape-collection-btn">سحب المجموعة</button>
+        <label>رابط المتجر</label>
+        <input id="jomla-scrape-store-url" placeholder="https://example.com" style="width:100%"/>
+        <button class="btn btn-primary" style="margin-top:12px" onclick="runJomlaDiscoverCollections()" id="jomla-scrape-discover-btn">اكتشف الأقسام</button>
+
+        <div id="jomla-scrape-collections-list-wrap" style="display:none;margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
+          <h3 style="margin:0 0 10px">أقسام المتجر — اختر قسم لسحبه</h3>
+          <div id="jomla-scrape-collections-list" style="display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto"></div>
+        </div>
 
         <div id="jomla-scrape-collection-review" style="display:none;margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:10px">
@@ -2267,6 +2279,14 @@ async function runScraper() {
       </div>
     `).join('');
 
+    const warnEl = document.getElementById('scrape-duplicate-warning');
+    if (data.alreadyImported) {
+      warnEl.style.display = '';
+      warnEl.textContent = `⚠️ هذا المنتج مستورد مسبقاً باسم "${data.alreadyImported.name}" — الحفظ راح ينشئ نسخة مكررة`;
+    } else {
+      warnEl.style.display = 'none';
+    }
+
     document.getElementById('scrape-review').style.display = 'block';
     toast('✅ تم سحب البيانات — راجعها قبل الحفظ');
   } catch (err) {
@@ -2325,13 +2345,48 @@ function setScrapeMode(mode) {
 
 // ── سحب مجموعة كاملة ───────────────────────────────────────────────
 let collectionScrapedData = null;
+let discoveredCollections = null;
 
-async function runCollectionScraper() {
-  const url = document.getElementById('scrape-collection-url').value.trim();
+async function runDiscoverCollections() {
+  const url = document.getElementById('scrape-store-url').value.trim();
   if (!url) { toast('الرابط مطلوب'); return; }
-  const btn = document.getElementById('scrape-collection-btn');
+  const btn = document.getElementById('scrape-discover-btn');
   btn.disabled = true;
-  btn.textContent = 'جاري السحب... قد يستغرق دقيقة';
+  btn.textContent = 'جاري الاكتشاف...';
+  try {
+    const res = await fetch(`${API}/admin/store/scrape-collections`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    const data = await res.json();
+    if (data.error) { toast('❌ ' + data.error); return; }
+    discoveredCollections = data;
+    renderDiscoveredCollections();
+    document.getElementById('scrape-collections-list-wrap').style.display = 'block';
+    document.getElementById('scrape-collection-review').style.display = 'none';
+    toast(`✅ وجدت ${data.collections.length} قسم — اختر واحد لسحبه`);
+  } catch (err) {
+    toast('❌ فشل الاتصال بالسكرابر');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'اكتشف الأقسام';
+  }
+}
+
+function renderDiscoveredCollections() {
+  const list = document.getElementById('scrape-collections-list');
+  list.innerHTML = discoveredCollections.collections.map((c, i) => `
+    <button class="btn btn-gray" style="justify-content:space-between;display:flex;text-align:right" onclick="runCollectionScraper('${escapeHtmlAdmin(c.url)}')">
+      <span>${escapeHtmlAdmin(c.title)}</span>
+      <span style="color:var(--gray);font-size:12px">${c.productsCount != null ? c.productsCount + ' منتج' : ''}</span>
+    </button>
+  `).join('');
+}
+
+async function runCollectionScraper(url) {
+  const btn = document.getElementById('scrape-discover-btn');
+  btn.disabled = true;
+  toast('جاري سحب القسم... قد يستغرق دقيقة');
   try {
     const res = await fetch(`${API}/admin/store/scrape-collection`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -2340,9 +2395,13 @@ async function runCollectionScraper() {
     const data = await res.json();
     if (data.error) { toast('❌ ' + data.error); return; }
     collectionScrapedData = data;
-    collectionScrapedData.selected = new Set(data.products.map((_, i) => i));
+    collectionScrapedData.selected = new Set(
+      data.products.map((p, i) => i).filter(i => !data.products[i].alreadyImported)
+    );
 
-    document.getElementById('scrape-collection-count').textContent = `تم سحب ${data.count} منتج`;
+    const dupCount = data.products.filter(p => p.alreadyImported).length;
+    document.getElementById('scrape-collection-count').textContent =
+      `تم سحب ${data.count} منتج${dupCount ? ` (${dupCount} مستورد مسبقاً — غير محدد تلقائياً)` : ''}`;
     fillCategorySelect(document.getElementById('scrape-collection-category'), '');
     renderCollectionList();
     document.getElementById('scrape-collection-review').style.display = 'block';
@@ -2351,7 +2410,6 @@ async function runCollectionScraper() {
     toast('❌ فشل الاتصال بالسكرابر');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'سحب المجموعة';
   }
 }
 
@@ -2360,13 +2418,15 @@ function renderCollectionList() {
   list.innerHTML = collectionScrapedData.products.map((p, i) => {
     const checked = collectionScrapedData.selected.has(i);
     const thumb = p.images && p.images[0] ? p.images[0] : '';
+    const dup = p.alreadyImported;
     return `
-      <label style="display:flex;gap:12px;align-items:center;padding:10px;border:1px solid var(--border);border-radius:12px;cursor:pointer;background:${checked?'#fff':'#f7f7f7'}">
+      <label style="display:flex;gap:12px;align-items:center;padding:10px;border:1px solid ${dup?'#ffcc80':'var(--border)'};border-radius:12px;cursor:pointer;background:${checked?'#fff':'#f7f7f7'}">
         <input type="checkbox" ${checked?'checked':''} onchange="toggleCollectionProduct(${i}, this.checked)" style="width:18px;height:18px;flex-shrink:0"/>
         ${thumb ? `<img src="${thumb}" style="width:50px;height:50px;object-fit:cover;border-radius:8px;flex-shrink:0">` : '<div style="width:50px;height:50px;background:var(--pink-light);border-radius:8px;flex-shrink:0"></div>'}
         <div style="flex:1;min-width:0">
           <div style="font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtmlAdmin(p.title)}</div>
           <div style="font-size:13px;color:var(--pink);font-weight:700">${p.price != null ? p.price + ' ' + (p.currency||'SAR') : 'بدون سعر'}</div>
+          ${dup ? `<div style="font-size:12px;color:#e65100;font-weight:700">⚠️ مستورد مسبقاً باسم "${escapeHtmlAdmin(dup.name)}"</div>` : ''}
         </div>
       </label>
     `;
@@ -2386,8 +2446,10 @@ function toggleAllCollectionProducts(select) {
 
 function cancelCollectionScrapeReview() {
   document.getElementById('scrape-collection-review').style.display = 'none';
-  document.getElementById('scrape-collection-url').value = '';
+  document.getElementById('scrape-collections-list-wrap').style.display = 'none';
+  document.getElementById('scrape-store-url').value = '';
   collectionScrapedData = null;
+  discoveredCollections = null;
 }
 
 async function confirmCollectionScrapeSave() {
@@ -2720,6 +2782,14 @@ async function runJomlaScraper() {
       </div>
     `).join('');
 
+    const jomlaWarnEl = document.getElementById('jomla-scrape-duplicate-warning');
+    if (data.alreadyImported) {
+      jomlaWarnEl.style.display = '';
+      jomlaWarnEl.textContent = `⚠️ هذا المنتج مستورد مسبقاً باسم "${data.alreadyImported.name}" — الحفظ راح ينشئ نسخة مكررة`;
+    } else {
+      jomlaWarnEl.style.display = 'none';
+    }
+
     document.getElementById('jomla-scrape-review').style.display = 'block';
     toast('✅ تم سحب البيانات — راجعها قبل الحفظ');
   } catch (err) {
@@ -2778,13 +2848,48 @@ function setJomlaScrapeMode(mode) {
 
 // ── سحب مجموعة كاملة ───────────────────────────────────────────────
 let jomlaCollectionScrapedData = null;
+let jomlaDiscoveredCollections = null;
 
-async function runJomlaCollectionScraper() {
-  const url = document.getElementById('jomla-scrape-collection-url').value.trim();
+async function runJomlaDiscoverCollections() {
+  const url = document.getElementById('jomla-scrape-store-url').value.trim();
   if (!url) { toast('الرابط مطلوب'); return; }
-  const btn = document.getElementById('jomla-scrape-collection-btn');
+  const btn = document.getElementById('jomla-scrape-discover-btn');
   btn.disabled = true;
-  btn.textContent = 'جاري السحب... قد يستغرق دقيقة';
+  btn.textContent = 'جاري الاكتشاف...';
+  try {
+    const res = await fetch(`${API}/admin/jomla/scrape-collections`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    const data = await res.json();
+    if (data.error) { toast('❌ ' + data.error); return; }
+    jomlaDiscoveredCollections = data;
+    renderJomlaDiscoveredCollections();
+    document.getElementById('jomla-scrape-collections-list-wrap').style.display = 'block';
+    document.getElementById('jomla-scrape-collection-review').style.display = 'none';
+    toast(`✅ وجدت ${data.collections.length} قسم — اختر واحد لسحبه`);
+  } catch (err) {
+    toast('❌ فشل الاتصال بالسكرابر');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'اكتشف الأقسام';
+  }
+}
+
+function renderJomlaDiscoveredCollections() {
+  const list = document.getElementById('jomla-scrape-collections-list');
+  list.innerHTML = jomlaDiscoveredCollections.collections.map((c, i) => `
+    <button class="btn btn-gray" style="justify-content:space-between;display:flex;text-align:right" onclick="runJomlaCollectionScraper('${escapeHtmlAdmin(c.url)}')">
+      <span>${escapeHtmlAdmin(c.title)}</span>
+      <span style="color:var(--gray);font-size:12px">${c.productsCount != null ? c.productsCount + ' منتج' : ''}</span>
+    </button>
+  `).join('');
+}
+
+async function runJomlaCollectionScraper(url) {
+  const btn = document.getElementById('jomla-scrape-discover-btn');
+  btn.disabled = true;
+  toast('جاري سحب القسم... قد يستغرق دقيقة');
   try {
     const res = await fetch(`${API}/admin/jomla/scrape-collection`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -2793,9 +2898,13 @@ async function runJomlaCollectionScraper() {
     const data = await res.json();
     if (data.error) { toast('❌ ' + data.error); return; }
     jomlaCollectionScrapedData = data;
-    jomlaCollectionScrapedData.selected = new Set(data.products.map((_, i) => i));
+    jomlaCollectionScrapedData.selected = new Set(
+      data.products.map((p, i) => i).filter(i => !data.products[i].alreadyImported)
+    );
 
-    document.getElementById('jomla-scrape-collection-count').textContent = `تم سحب ${data.count} منتج`;
+    const dupCount = data.products.filter(p => p.alreadyImported).length;
+    document.getElementById('jomla-scrape-collection-count').textContent =
+      `تم سحب ${data.count} منتج${dupCount ? ` (${dupCount} مستورد مسبقاً — غير محدد تلقائياً)` : ''}`;
     fillJomlaCategorySelect(document.getElementById('jomla-scrape-collection-category'), '');
     renderJomlaCollectionList();
     document.getElementById('jomla-scrape-collection-review').style.display = 'block';
@@ -2804,7 +2913,6 @@ async function runJomlaCollectionScraper() {
     toast('❌ فشل الاتصال بالسكرابر');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'سحب المجموعة';
   }
 }
 
@@ -2813,13 +2921,15 @@ function renderJomlaCollectionList() {
   list.innerHTML = jomlaCollectionScrapedData.products.map((p, i) => {
     const checked = jomlaCollectionScrapedData.selected.has(i);
     const thumb = p.images && p.images[0] ? p.images[0] : '';
+    const dup = p.alreadyImported;
     return `
-      <label style="display:flex;gap:12px;align-items:center;padding:10px;border:1px solid var(--border);border-radius:12px;cursor:pointer;background:${checked?'#fff':'#f7f7f7'}">
+      <label style="display:flex;gap:12px;align-items:center;padding:10px;border:1px solid ${dup?'#ffcc80':'var(--border)'};border-radius:12px;cursor:pointer;background:${checked?'#fff':'#f7f7f7'}">
         <input type="checkbox" ${checked?'checked':''} onchange="toggleJomlaCollectionProduct(${i}, this.checked)" style="width:18px;height:18px;flex-shrink:0"/>
         ${thumb ? `<img src="${thumb}" style="width:50px;height:50px;object-fit:cover;border-radius:8px;flex-shrink:0">` : '<div style="width:50px;height:50px;background:var(--pink-light);border-radius:8px;flex-shrink:0"></div>'}
         <div style="flex:1;min-width:0">
           <div style="font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtmlAdmin(p.title)}</div>
           <div style="font-size:13px;color:var(--pink);font-weight:700">${p.price != null ? p.price + ' ' + (p.currency||'SAR') : 'بدون سعر'}</div>
+          ${dup ? `<div style="font-size:12px;color:#e65100;font-weight:700">⚠️ مستورد مسبقاً باسم "${escapeHtmlAdmin(dup.name)}"</div>` : ''}
         </div>
       </label>
     `;
@@ -2839,8 +2949,10 @@ function toggleAllJomlaCollectionProducts(select) {
 
 function cancelJomlaCollectionScrapeReview() {
   document.getElementById('jomla-scrape-collection-review').style.display = 'none';
-  document.getElementById('jomla-scrape-collection-url').value = '';
+  document.getElementById('jomla-scrape-collections-list-wrap').style.display = 'none';
+  document.getElementById('jomla-scrape-store-url').value = '';
   jomlaCollectionScrapedData = null;
+  jomlaDiscoveredCollections = null;
 }
 
 async function confirmJomlaCollectionScrapeSave() {
