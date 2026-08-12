@@ -27,6 +27,7 @@ function escapeHtml(str) {
 // فوتر مشترك لصفحات SSR (منتج) — يُبنى من نفس بيانات landing_settings المستخدمة بالفوتر الديناميكي في صفحات الـ JS
 function renderFooterHtml(settings, basePath, defaultTagline) {
   const s = settings || {};
+  const storeName = escapeHtml(s.store_name || 'د. روز للورد');
   const tagline = escapeHtml(s.tagline || defaultTagline);
   const contactItems = [];
   if (s.phone) contactItems.push(`<li><a href="tel:${escapeHtml(s.phone)}">${escapeHtml(s.phone)}</a></li>`);
@@ -36,16 +37,21 @@ function renderFooterHtml(settings, basePath, defaultTagline) {
     contactItems.push(`<li><a href="https://wa.me/${digits}" target="_blank" rel="noopener">واتساب</a></li>`);
   }
   const contactHtml = contactItems.join('') || '<li>—</li>';
-  let socialHtml = '';
+  const socialItems = [];
   if (s.instagram) {
     const handle = String(s.instagram).replace(/^@/, '');
-    socialHtml = `<a href="https://instagram.com/${escapeHtml(handle)}" target="_blank" rel="noopener" aria-label="إنستقرام"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg></a>`;
+    socialItems.push(`<a href="https://instagram.com/${escapeHtml(handle)}" target="_blank" rel="noopener" aria-label="إنستقرام"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg></a>`);
   }
+  if (s.snapchat) {
+    const handle = String(s.snapchat).replace(/^@/, '');
+    socialItems.push(`<a href="https://snapchat.com/add/${escapeHtml(handle)}" target="_blank" rel="noopener" aria-label="سناب شات"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2c2.8 0 5 2.2 5 5v2.3c0 .5.3 1 .8 1.4l1.3 1c.4.3.3.9-.2 1l-1.6.5c-.3.1-.5.4-.4.7.2.9.7 1.6 1.7 1.9.4.1.4.7 0 .9-.7.4-1.6.6-2.3.7-.2 0-.4.2-.4.4 0 .3-.1.7-.2 1-.1.3-.4.4-.7.3-.6-.2-1.3-.3-1.9-.1-.7.2-1.3.7-2 1.1-.6.3-1.3.3-1.9 0-.7-.4-1.3-.9-2-1.1-.6-.2-1.3-.1-1.9.1-.3.1-.6 0-.7-.3-.1-.3-.2-.7-.2-1 0-.2-.2-.4-.4-.4-.7-.1-1.6-.3-2.3-.7-.4-.2-.4-.8 0-.9 1-.3 1.5-1 1.7-1.9.1-.3-.1-.6-.4-.7l-1.6-.5c-.5-.1-.6-.7-.2-1l1.3-1c.5-.4.8-.9.8-1.4V7c0-2.8 2.2-5 5-5z"></path></svg></a>`);
+  }
+  const socialHtml = socialItems.join('');
   return `
 <footer class="store-footer">
   <div class="footer-inner">
     <div class="footer-brand">
-      <img class="footer-logo" src="/images/drrose-logo-small.png" alt="دورو">
+      <img class="footer-logo" src="/images/drrose-logo-small.png" alt="${storeName}">
       <p class="footer-tagline">${tagline}</p>
       <div class="footer-social">${socialHtml}</div>
     </div>
@@ -62,7 +68,7 @@ function renderFooterHtml(settings, basePath, defaultTagline) {
       </ul>
     </div>
   </div>
-  <div class="footer-bottom">© ${new Date().getFullYear()} دورو. جميع الحقوق محفوظة.</div>
+  <div class="footer-bottom">© ${new Date().getFullYear()} ${storeName}. جميع الحقوق محفوظة.</div>
 </footer>`;
 }
 
@@ -174,6 +180,7 @@ module.exports = function registerStore(app, getDB, CONFIG) {
         phone VARCHAR(50),
         whatsapp VARCHAR(50),
         instagram VARCHAR(255),
+        snapchat VARCHAR(255),
         retail_store_enabled TINYINT(1) DEFAULT 1,
         wholesale_store_enabled TINYINT(1) DEFAULT 0,
         wholesale_label VARCHAR(100) DEFAULT 'قريباً',
@@ -215,7 +222,7 @@ module.exports = function registerStore(app, getDB, CONFIG) {
     try {
       const db = await getDB();
       const [[settings]] = await db.execute(
-        `SELECT store_name, tagline, phone, whatsapp, instagram FROM landing_settings WHERE id = 1`
+        `SELECT store_name, tagline, phone, whatsapp, instagram, snapchat FROM landing_settings WHERE id = 1`
       );
       res.json(settings || {});
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -309,14 +316,14 @@ module.exports = function registerStore(app, getDB, CONFIG) {
       );
       if (!product) {
         res.status(404).set('Content-Type', 'text/html; charset=utf-8');
-        return res.send(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>المنتج غير موجود — دورو</title></head><body><h1>المنتج غير موجود</h1><a href="/store">عودة للمتجر</a></body></html>`);
+        return res.send(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>المنتج غير موجود — د. روز</title></head><body><h1>المنتج غير موجود</h1><a href="/store">عودة للمتجر</a></body></html>`);
       }
       const [images] = await db.execute(
         `SELECT id, is_primary FROM store_product_images WHERE product_id = ? ORDER BY sort_order`,
         [product.id]
       );
       const [[siteInfo]] = await db.execute(
-        `SELECT tagline, phone, whatsapp, instagram FROM landing_settings WHERE id = 1`
+        `SELECT store_name, tagline, phone, whatsapp, instagram, snapchat FROM landing_settings WHERE id = 1`
       ).catch(() => [[null]]);
 
       const title = escapeHtml(product.meta_title || product.name);
@@ -359,7 +366,7 @@ module.exports = function registerStore(app, getDB, CONFIG) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title} — متجر دورو</title>
+<title>${title} — متجر د. روز</title>
 <meta name="description" content="${description}">
 <meta property="og:type" content="product">
 <meta property="og:title" content="${title}">
@@ -370,12 +377,12 @@ module.exports = function registerStore(app, getDB, CONFIG) {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/store/store.css?v=6">
+<link rel="stylesheet" href="/store/store.css?v=7">
 <script type="application/ld+json">${jsonLd}</script>
 </head>
 <body>
 <header class="store-header">
-  <a href="/store" class="store-logo"><img src="/images/drrose-logo.png" alt="دورو"></a>
+  <a href="/store" class="store-logo"><img src="/images/drrose-logo.png" alt="د. روز للورد"></a>
   <a href="/store/cart.html" class="cart-link">السلة <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg></a>
 </header>
 <nav class="breadcrumb">${breadcrumbHtml}</nav>
@@ -717,7 +724,7 @@ ${renderFooterHtml(siteInfo, '/store', 'باقات ورد فاخرة توصلك 
       const db = await getDB();
       const fieldMap = {
         storeName: 'store_name', tagline: 'tagline', logoUrl: 'logo_url',
-        phone: 'phone', whatsapp: 'whatsapp', instagram: 'instagram',
+        phone: 'phone', whatsapp: 'whatsapp', instagram: 'instagram', snapchat: 'snapchat',
         retailStoreEnabled: 'retail_store_enabled', wholesaleStoreEnabled: 'wholesale_store_enabled',
         wholesaleLabel: 'wholesale_label',
       };

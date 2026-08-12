@@ -814,6 +814,11 @@
         <input id="landing-instagram" placeholder="drrose_sa"
           style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:11px;font-size:14px;font-family:inherit;outline:none"/>
       </div>
+      <div style="grid-column:1/-1">
+        <label style="display:block;font-size:13px;font-weight:700;color:var(--gray);margin-bottom:6px">حساب سناب شات (بدون @)</label>
+        <input id="landing-snapchat" placeholder="drrose.sa"
+          style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:11px;font-size:14px;font-family:inherit;outline:none"/>
+      </div>
     </div>
   </div>
 
@@ -2825,6 +2830,7 @@ async function loadLandingSettings() {
     document.getElementById('landing-phone').value = s.phone || '';
     document.getElementById('landing-whatsapp').value = s.whatsapp || '';
     document.getElementById('landing-instagram').value = s.instagram || '';
+    document.getElementById('landing-snapchat').value = s.snapchat || '';
     document.getElementById('landing-retail-enabled').checked = !!s.retail_store_enabled;
     document.getElementById('landing-wholesale-enabled').checked = !!s.wholesale_store_enabled;
     document.getElementById('landing-wholesale-label').value = s.wholesale_label || 'قريباً';
@@ -2838,6 +2844,7 @@ async function saveLandingSettings() {
     phone: document.getElementById('landing-phone').value.trim(),
     whatsapp: document.getElementById('landing-whatsapp').value.trim(),
     instagram: document.getElementById('landing-instagram').value.trim(),
+    snapchat: document.getElementById('landing-snapchat').value.trim(),
     retailStoreEnabled: document.getElementById('landing-retail-enabled').checked,
     wholesaleStoreEnabled: document.getElementById('landing-wholesale-enabled').checked,
     wholesaleLabel: document.getElementById('landing-wholesale-label').value.trim() || 'قريباً',
