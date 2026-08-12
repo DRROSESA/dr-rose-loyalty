@@ -636,6 +636,7 @@
     <button class="store-subtab" onclick="showJomlaSection('categories')">🗂️ التصنيفات</button>
     <button class="store-subtab" onclick="showJomlaSection('scraper')">🔗 السكرابر</button>
     <button class="store-subtab" onclick="showJomlaSection('orders')">🛒 السلال</button>
+    <button class="store-subtab" onclick="showJomlaSection('inventory')">📊 المخزون</button>
   </div>
 
   <!-- منتجات -->
@@ -766,6 +767,27 @@
           </tr>
         </thead>
         <tbody id="jomla-orders-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- مخزون -->
+  <div id="jomla-section-inventory" style="display:none">
+    <p style="font-size:13px;color:var(--gray);margin-bottom:14px">
+      اترك الكمية فارغة لمنتج بدون تتبع مخزون (يبقى متوفراً دائماً). أي رقم — بما فيه 0 — يُفعّل التحقق من التوفر بالمتجر.
+    </p>
+    <input class="search-input" id="jomla-inv-search" placeholder="🔍 بحث بالاسم" oninput="filterJomlaInventory()"/>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>المنتج</th>
+            <th>التصنيف</th>
+            <th>الحالة</th>
+            <th>الكمية المتوفرة</th>
+          </tr>
+        </thead>
+        <tbody id="jomla-inv-table"></tbody>
       </table>
     </div>
   </div>
@@ -2398,13 +2420,14 @@ let jomlaCategories = [];
 let jomlaScrapedData = null;
 
 function showJomlaSection(name) {
-  ['products','categories','scraper','orders'].forEach(s => {
+  ['products','categories','scraper','orders','inventory'].forEach(s => {
     document.getElementById(`jomla-section-${s}`).style.display = s===name ? '' : 'none';
   });
   document.querySelectorAll('.store-subtab').forEach((el,i) => {
-    el.classList.toggle('active', ['products','categories','scraper','orders'][i] === name);
+    el.classList.toggle('active', ['products','categories','scraper','orders','inventory'][i] === name);
   });
   if (name === 'orders') loadJomlaOrders();
+  if (name === 'inventory') loadJomlaInventory();
 }
 
 // escapeHtmlAdmin مُعرّفة مسبقاً بقسم المتجر (نفس الدالة بالضبط، لا حاجة لتكرارها)
@@ -2816,6 +2839,59 @@ async function loadJomlaOrders() {
       </tr>
     `).join('');
   } catch (err) { toast('❌ تعذر تحميل السلال'); }
+}
+
+// ── مخزون ───────────────────────────────────────────────────────
+let jomlaInventory = [];
+
+async function loadJomlaInventory() {
+  try {
+    const res = await fetch(`${API}/admin/jomla/inventory`);
+    jomlaInventory = await res.json();
+    renderJomlaInventory(jomlaInventory);
+  } catch (err) { toast('❌ تعذر تحميل المخزون'); }
+}
+
+function filterJomlaInventory() {
+  const q = document.getElementById('jomla-inv-search').value.trim();
+  if (!q) return renderJomlaInventory(jomlaInventory);
+  renderJomlaInventory(jomlaInventory.filter(p => (p.name||'').includes(q)));
+}
+
+function renderJomlaInventory(list) {
+  const tbody = document.getElementById('jomla-inv-table');
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:#aaa">لا توجد منتجات</td></tr>'; return; }
+  tbody.innerHTML = list.map(p => `
+    <tr>
+      <td>${escapeHtmlAdmin(p.name)}</td>
+      <td>${escapeHtmlAdmin(p.category_name || '—')}</td>
+      <td>${p.status === 'published' ? 'منشور' : 'مسودة'}</td>
+      <td>
+        <input type="number" min="0" step="1" data-id="${p.id}"
+          value="${p.stock_quantity === null ? '' : p.stock_quantity}"
+          placeholder="بدون حد"
+          style="width:100px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit"
+          onchange="saveJomlaStock(${p.id}, this)"/>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function saveJomlaStock(id, inputEl) {
+  const raw = inputEl.value.trim();
+  const stockQuantity = raw === '' ? null : parseInt(raw);
+  try {
+    const res = await fetch(`${API}/admin/jomla/inventory/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stockQuantity }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'فشل الحفظ');
+    const item = jomlaInventory.find(p => p.id === id);
+    if (item) item.stock_quantity = stockQuantity;
+    toast('✅ تم تحديث الكمية');
+  } catch (err) { toast('❌ ' + err.message); }
 }
 
 // ═══════════════════════════════════════════════════════════════════

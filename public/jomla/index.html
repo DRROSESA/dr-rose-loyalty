@@ -190,8 +190,10 @@ async function loadProducts(categorySlug) {
     grid.innerHTML = products.map(p => {
       const hasDiscount = p.compare_at_price && Number(p.compare_at_price) > Number(p.price);
       const discountPct = hasDiscount ? Math.round(100 - (Number(p.price) / Number(p.compare_at_price)) * 100) : 0;
+      const outOfStock = p.stock_quantity !== null && p.stock_quantity <= 0;
+      stockLimits[p.id] = p.stock_quantity;
       return `
-      <div class="product-card" data-product-id="${p.id}">
+      <div class="product-card${outOfStock ? ' out-of-stock' : ''}" data-product-id="${p.id}">
         <div class="thumb-wrap">
           <a href="/jomla/product/${encodeURIComponent(p.slug)}">
             <img class="thumb" loading="lazy"
@@ -199,7 +201,7 @@ async function loadProducts(categorySlug) {
                  alt="${escapeHtml(p.name)}"
                  onerror="this.style.background='#fce4ec'">
           </a>
-          ${hasDiscount ? `<span class="discount-badge">${discountPct}%-</span>` : ''}
+          ${outOfStock ? `<span class="out-of-stock-badge">غير متوفر</span>` : hasDiscount ? `<span class="discount-badge">${discountPct}%-</span>` : ''}
           <div class="cart-control" data-id="${p.id}"></div>
         </div>
         <div class="body">
@@ -222,13 +224,19 @@ async function loadProducts(categorySlug) {
   }
 }
 
+let stockLimits = {};
+
 function cartControlHtml(productId, qty) {
+  const limit = stockLimits[productId];
+  const outOfStock = limit !== undefined && limit !== null && limit <= 0;
+  if (outOfStock) return `<button class="btn-add-fab" disabled aria-label="غير متوفر">+</button>`;
   if (!qty) return `<button class="btn-add-fab" data-id="${productId}" aria-label="أضف إلى السلة">+</button>`;
+  const atLimit = limit !== undefined && limit !== null && qty >= limit;
   return `
     <div class="qty-stepper" data-id="${productId}">
       <button class="qty-minus" aria-label="إنقاص">−</button>
       <span class="qty-value">${qty}</span>
-      <button class="qty-plus" aria-label="زيادة">+</button>
+      <button class="qty-plus" aria-label="زيادة"${atLimit ? ' disabled' : ''}>+</button>
     </div>`;
 }
 
@@ -238,9 +246,11 @@ function renderCartControls() {
     el.innerHTML = cartControlHtml(id, cartQuantities[id] || 0);
   });
   document.querySelectorAll('.btn-add-fab').forEach(btn => {
+    if (btn.disabled) return;
     btn.addEventListener('click', () => changeCartQty(btn.dataset.id, 1));
   });
   document.querySelectorAll('.qty-plus').forEach(btn => {
+    if (btn.disabled) return;
     btn.addEventListener('click', () => changeCartQty(btn.closest('.qty-stepper').dataset.id, 1));
   });
   document.querySelectorAll('.qty-minus').forEach(btn => {
@@ -251,23 +261,32 @@ function renderCartControls() {
 async function changeCartQty(productId, delta) {
   const id = String(productId);
   const current = cartQuantities[id] || 0;
-  const next = Math.max(0, current + delta);
+  let next = Math.max(0, current + delta);
+  const limit = stockLimits[id];
+  if (delta > 0 && limit !== undefined && limit !== null && next > limit) next = limit;
+  if (next === current) return;
   cartQuantities[id] = next;
   renderCartControls();
   updateCartBadge();
   try {
     if (current === 0 && next === 1) {
-      await fetch(API + '/jomla/api/cart/add', {
+      const res = await fetch(API + '/jomla/api/cart/add', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
         body: JSON.stringify({ productId: Number(id), quantity: 1 }),
       });
+      if (!res.ok) throw new Error();
     } else {
-      await fetch(API + '/jomla/api/cart/update', {
+      const res = await fetch(API + '/jomla/api/cart/update', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
         body: JSON.stringify({ productId: Number(id), quantity: next }),
       });
+      if (!res.ok) throw new Error();
     }
-  } catch (err) { /* تبقى الكمية كما هي محلياً حتى لو فشل الطلب */ }
+  } catch (err) {
+    cartQuantities[id] = current;
+    renderCartControls();
+    updateCartBadge();
+  }
 }
 
 let cartQuantities = {};

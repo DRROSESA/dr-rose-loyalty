@@ -236,6 +236,20 @@ img{max-width:100%;display:block;}
   padding:3px 9px;
   border-radius:8px;
 }
+.product-card .out-of-stock-badge{
+  position:absolute;
+  top:10px;
+  right:10px;
+  background:#b71c1c;
+  color:#fff;
+  font-size:12px;
+  font-weight:bold;
+  padding:3px 9px;
+  border-radius:8px;
+}
+.product-card.out-of-stock .thumb{opacity:.5;}
+.product-card .btn-add-fab:disabled{background:var(--text-muted);cursor:not-allowed;box-shadow:none;}
+.product-card .btn-add-fab:disabled:hover{background:var(--text-muted);transform:none;}
 .product-card .btn-add-fab{
   position:absolute;
   bottom:10px;

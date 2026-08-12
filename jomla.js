@@ -136,6 +136,8 @@ module.exports = function registerJomlaStore(app, getDB, CONFIG) {
     `);
     // شارة الحالة تحت اسم المنتج — مثل "زهور متفتحة" أو "باقي 3 فقط" أو "ينفد بسرعة" (نص حر يديره الأدمن)
     await db.execute(`ALTER TABLE jomla_products ADD COLUMN IF NOT EXISTS stock_note VARCHAR(60) NULL`).catch(() => {});
+    // stock_quantity = NULL يعني مخزون غير مُتابَع (بدون حد)؛ رقم فعلي (بما فيها 0) يُفعّل التحقق من التوفر
+    await db.execute(`ALTER TABLE jomla_products ADD COLUMN IF NOT EXISTS stock_quantity INT NULL`).catch(() => {});
     await db.execute(`
       CREATE TABLE IF NOT EXISTS jomla_product_images (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -242,7 +244,7 @@ module.exports = function registerJomlaStore(app, getDB, CONFIG) {
       }
 
       const [rows] = await db.execute(
-        `SELECT p.id, p.name, p.slug, p.price, p.compare_at_price, p.currency, p.stock_note,
+        `SELECT p.id, p.name, p.slug, p.price, p.compare_at_price, p.currency, p.stock_note, p.stock_quantity,
                 (SELECT id FROM jomla_product_images WHERE product_id = p.id ORDER BY is_primary DESC, sort_order LIMIT 1) AS image_id
          FROM jomla_products p
          LEFT JOIN jomla_categories c ON c.id = p.category_id
@@ -379,9 +381,11 @@ module.exports = function registerJomlaStore(app, getDB, CONFIG) {
       <span class="price ${product.compare_at_price && Number(product.compare_at_price) > Number(product.price) ? 'on-sale' : ''}">${product.price} ${escapeHtml(product.currency || 'SAR')}</span>
       ${product.compare_at_price && Number(product.compare_at_price) > Number(product.price) ? `<span class="price-compare">${product.compare_at_price} ${escapeHtml(product.currency || 'SAR')}</span>` : ''}
     </div>
-    ${product.stock_note ? `<span class="stock-note">${escapeHtml(product.stock_note)}</span>` : ''}
+    ${product.stock_quantity !== null && product.stock_quantity <= 0
+      ? `<span class="out-of-stock-badge">غير متوفر</span>`
+      : product.stock_note ? `<span class="stock-note">${escapeHtml(product.stock_note)}</span>` : ''}
     <p class="description">${description}</p>
-    <button class="btn-add-cart" data-product-id="${product.id}">أضف إلى السلة</button>
+    <button class="btn-add-cart" data-product-id="${product.id}"${product.stock_quantity !== null && product.stock_quantity <= 0 ? ' disabled' : ''}>${product.stock_quantity !== null && product.stock_quantity <= 0 ? 'غير متوفر' : 'أضف إلى السلة'}</button>
   </div>
 </main>
 ${renderFooterHtml(siteInfo, '/jomla', 'أسعار جملة على باقات الورد للتجار وأصحاب المحلات')}
@@ -457,8 +461,20 @@ ${renderFooterHtml(siteInfo, '/jomla', 'أسعار جملة على باقات ا
       const { productId, quantity } = req.body;
       const qty = Math.max(1, parseInt(quantity) || 1);
       if (!productId) return res.status(400).json({ error: 'productId مطلوب' });
-      const cartId = await getOrCreateCart(req, res);
       const db = await getDB();
+      const [[product]] = await db.execute(`SELECT stock_quantity FROM jomla_products WHERE id = ?`, [productId]);
+      if (!product) return res.status(404).json({ error: 'المنتج غير موجود' });
+      const cartId = await getOrCreateCart(req, res);
+      if (product.stock_quantity !== null) {
+        const [[existing]] = await db.execute(
+          `SELECT quantity FROM jomla_cart_items WHERE cart_id = ? AND product_id = ?`,
+          [cartId, productId]
+        );
+        const currentQty = existing ? existing.quantity : 0;
+        if (currentQty + qty > product.stock_quantity) {
+          return res.status(400).json({ error: 'الكمية المطلوبة تتجاوز المتوفر بالمخزون', available: product.stock_quantity });
+        }
+      }
       await db.execute(
         `INSERT INTO jomla_cart_items (cart_id, product_id, quantity) VALUES (?, ?, ?)
          ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity)`,
@@ -478,6 +494,10 @@ ${renderFooterHtml(siteInfo, '/jomla', 'أسعار جملة على باقات ا
       if (!qty || qty <= 0) {
         await db.execute(`DELETE FROM jomla_cart_items WHERE cart_id = ? AND product_id = ?`, [cartId, productId]);
       } else {
+        const [[product]] = await db.execute(`SELECT stock_quantity FROM jomla_products WHERE id = ?`, [productId]);
+        if (product && product.stock_quantity !== null && qty > product.stock_quantity) {
+          return res.status(400).json({ error: 'الكمية المطلوبة تتجاوز المتوفر بالمخزون', available: product.stock_quantity });
+        }
         await db.execute(`UPDATE jomla_cart_items SET quantity = ? WHERE cart_id = ? AND product_id = ?`, [qty, cartId, productId]);
       }
       res.json({ success: true });
@@ -566,6 +586,34 @@ ${renderFooterHtml(siteInfo, '/jomla', 'أسعار جملة على باقات ا
       const db = await getDB();
       await db.execute(`DELETE FROM jomla_products WHERE id = ?`, [req.params.id]);
       res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // إدارة المخزون — يقرأ/يحدّث stock_quantity فقط (NULL = غير متابَع، رقم = حد أقصى فعلي)
+  app.get('/admin/jomla/inventory', async (req, res) => {
+    try {
+      const db = await getDB();
+      const [rows] = await db.execute(
+        `SELECT p.id, p.name, p.slug, p.status, p.stock_quantity,
+                c.name AS category_name
+         FROM jomla_products p
+         LEFT JOIN jomla_categories c ON c.id = p.category_id
+         ORDER BY p.name ASC`
+      );
+      res.json(rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.put('/admin/jomla/inventory/:id', async (req, res) => {
+    try {
+      const { stockQuantity } = req.body;
+      const value = stockQuantity === null || stockQuantity === '' ? null : parseInt(stockQuantity);
+      if (value !== null && (isNaN(value) || value < 0)) {
+        return res.status(400).json({ error: 'الكمية يجب أن تكون رقماً صحيحاً موجباً أو فارغة' });
+      }
+      const db = await getDB();
+      await db.execute(`UPDATE jomla_products SET stock_quantity = ? WHERE id = ?`, [value, req.params.id]);
+      res.json({ success: true, stockQuantity: value });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
