@@ -413,7 +413,7 @@ img{max-width:100%;display:block;}
 .footer-bottom{
   max-width:1200px;
   margin:32px auto 0;
-  padding-top:20px;
+  padding:20px 20px 0;
   border-top:1px solid var(--border);
   text-align:center;
   color:var(--text-muted);
@@ -424,6 +424,7 @@ img{max-width:100%;display:block;}
 @media (max-width:640px){
   .product-grid,.category-grid{grid-template-columns:1fr 1fr !important;gap:12px;padding:14px;}
   .banner-slider{aspect-ratio:16/9;margin-top:0;border-radius:0;}
+  .store-footer{padding:32px 16px 20px;}
   .footer-inner{grid-template-columns:1fr;gap:24px;text-align:center;}
   .footer-brand .footer-tagline{max-width:none;margin:0 auto;}
   .footer-social{justify-content:center;}
