@@ -83,11 +83,18 @@ async function loadCategories() {
   const grid = document.getElementById('category-grid');
   grid.innerHTML = skeletonCards(5);
   try {
-    const res = await fetch(API + '/store/api/categories');
-    allCategories = await res.json();
+    const [catRes, prodRes] = await Promise.all([
+      fetch(API + '/store/api/categories'),
+      fetch(API + '/store/api/products'),
+    ]);
+    allCategories = await catRes.json();
+    const prodData = await prodRes.json();
+    const allProductsImageId = (prodData.products || []).find(p => p.image_id)?.image_id;
     const cards = [
       `<a href="#${ALL_SLUG}" class="category-card" data-slug="${ALL_SLUG}">
-        <img class="thumb" loading="lazy" src="" alt="كل المنتجات" style="background:var(--pink-light)">
+        <img class="thumb" loading="lazy"
+             src="${allProductsImageId ? '/store/product-image/' + allProductsImageId : ''}"
+             alt="كل المنتجات" onerror="this.style.background='#fce4ec'">
         <div class="name">كل المنتجات</div>
       </a>`,
       ...allCategories.map(c => `
