@@ -500,10 +500,21 @@
       <input class="search-input" id="store-prod-search" placeholder="🔍 بحث بالاسم" oninput="filterStoreProducts()"/>
       <button class="btn btn-primary btn-sm" onclick="openAddProduct()">+ منتج جديد</button>
     </div>
+    <div id="store-bulk-bar" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;background:var(--pink-light);border:1.5px solid var(--pink);border-radius:12px;padding:10px 14px;margin-bottom:12px">
+      <span id="store-bulk-count" style="font-weight:700;color:var(--pink-dark)"></span>
+      <select id="store-bulk-category" style="padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px">
+        <option value="">تغيير التصنيف إلى...</option>
+      </select>
+      <button class="btn btn-gray btn-sm" onclick="bulkStoreAction('publish')">نشر</button>
+      <button class="btn btn-gray btn-sm" onclick="bulkStoreAction('unpublish')">إلغاء النشر</button>
+      <button class="btn btn-warn btn-sm" onclick="bulkStoreAction('delete')">حذف</button>
+      <button class="btn btn-gray btn-sm" style="margin-right:auto" onclick="clearStoreSelection()">إلغاء التحديد</button>
+    </div>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
+            <th><input type="checkbox" id="store-select-all" onchange="toggleAllStoreSelection(this.checked)" style="width:16px;height:16px;cursor:pointer"/></th>
             <th>صورة</th>
             <th>الاسم</th>
             <th>التصنيف</th>
@@ -651,10 +662,21 @@
       <input class="search-input" id="jomla-prod-search" placeholder="🔍 بحث بالاسم" oninput="filterJomlaProducts()"/>
       <button class="btn btn-primary btn-sm" onclick="openAddJomlaProduct()">+ منتج جديد</button>
     </div>
+    <div id="jomla-bulk-bar" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;background:var(--pink-light);border:1.5px solid var(--pink);border-radius:12px;padding:10px 14px;margin-bottom:12px">
+      <span id="jomla-bulk-count" style="font-weight:700;color:var(--pink-dark)"></span>
+      <select id="jomla-bulk-category" style="padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px">
+        <option value="">تغيير التصنيف إلى...</option>
+      </select>
+      <button class="btn btn-gray btn-sm" onclick="bulkJomlaAction('publish')">نشر</button>
+      <button class="btn btn-gray btn-sm" onclick="bulkJomlaAction('unpublish')">إلغاء النشر</button>
+      <button class="btn btn-warn btn-sm" onclick="bulkJomlaAction('delete')">حذف</button>
+      <button class="btn btn-gray btn-sm" style="margin-right:auto" onclick="clearJomlaSelection()">إلغاء التحديد</button>
+    </div>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
+            <th><input type="checkbox" id="jomla-select-all" onchange="toggleAllJomlaSelection(this.checked)" style="width:16px;height:16px;cursor:pointer"/></th>
             <th>صورة</th>
             <th>الاسم</th>
             <th>التصنيف</th>
@@ -2030,11 +2052,14 @@ function filterStoreProducts() {
   renderStoreProducts(storeProducts.filter(p => (p.name||'').includes(q)));
 }
 
+let storeSelectedIds = new Set();
+
 function renderStoreProducts(list) {
   const tbody = document.getElementById('store-prod-table');
-  if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#aaa">لا توجد منتجات</td></tr>'; return; }
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:#aaa">لا توجد منتجات</td></tr>'; return; }
   tbody.innerHTML = list.map(p => `
     <tr>
+      <td><input type="checkbox" data-id="${p.id}" ${storeSelectedIds.has(p.id)?'checked':''} onchange="toggleStoreSelection(${p.id}, this.checked)" style="width:16px;height:16px;cursor:pointer"/></td>
       <td>${p.image_id ? `<img class="prod-thumb" src="${API}/store/product-image/${p.image_id}">` : '—'}</td>
       <td>${escapeHtmlAdmin(p.name)}</td>
       <td>
@@ -2177,6 +2202,82 @@ async function deleteStoreProduct(id) {
   await fetch(`${API}/admin/store/products/${id}`, { method: 'DELETE' });
   toast('🗑️ تم الحذف');
   loadStoreProducts();
+}
+
+// ── تحديد متعدد وإجراء جماعي ─────────────────────────────────────
+function toggleStoreSelection(id, checked) {
+  if (checked) storeSelectedIds.add(id);
+  else storeSelectedIds.delete(id);
+  updateStoreBulkBar();
+}
+
+function toggleAllStoreSelection(checked) {
+  document.querySelectorAll('#store-prod-table input[type=checkbox]').forEach(cb => {
+    cb.checked = checked;
+    const id = Number(cb.dataset.id);
+    if (checked) storeSelectedIds.add(id);
+    else storeSelectedIds.delete(id);
+  });
+  updateStoreBulkBar();
+}
+
+function clearStoreSelection() {
+  storeSelectedIds.clear();
+  document.getElementById('store-select-all').checked = false;
+  renderStoreProducts(storeProducts);
+  updateStoreBulkBar();
+}
+
+function updateStoreBulkBar() {
+  const bar = document.getElementById('store-bulk-bar');
+  const n = storeSelectedIds.size;
+  bar.style.display = n ? 'flex' : 'none';
+  if (n) {
+    document.getElementById('store-bulk-count').textContent = `${n} منتج محدد`;
+    const catSelect = document.getElementById('store-bulk-category');
+    catSelect.innerHTML = '<option value="">تغيير التصنيف إلى...</option>' +
+      storeCategories.map(c => `<option value="${c.id}">${escapeHtmlAdmin(c.name)}</option>`).join('');
+  }
+}
+
+document.addEventListener('change', (e) => {
+  if (e.target && e.target.id === 'store-bulk-category' && e.target.value) {
+    bulkStoreAction('category', e.target.value);
+    e.target.value = '';
+  }
+});
+
+async function bulkStoreAction(action, categoryId) {
+  const ids = Array.from(storeSelectedIds);
+  if (!ids.length) return;
+
+  if (action === 'delete') {
+    if (!confirm(`هل تريد حذف ${ids.length} منتج نهائياً؟ لا يمكن التراجع.`)) return;
+  }
+
+  try {
+    if (action === 'publish' || action === 'unpublish') {
+      const status = action === 'publish' ? 'published' : 'draft';
+      await Promise.all(ids.map(id => fetch(`${API}/admin/store/products/${id}/publish`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })));
+      toast(action === 'publish' ? `✅ تم نشر ${ids.length} منتج` : `↩️ تم إلغاء نشر ${ids.length} منتج`);
+    } else if (action === 'delete') {
+      await Promise.all(ids.map(id => fetch(`${API}/admin/store/products/${id}`, { method: 'DELETE' })));
+      toast(`🗑️ تم حذف ${ids.length} منتج`);
+    } else if (action === 'category') {
+      await Promise.all(ids.map(id => fetch(`${API}/admin/store/products/${id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categoryId: categoryId || null }),
+      })));
+      toast(`✅ تم تحديث تصنيف ${ids.length} منتج`);
+    }
+    storeSelectedIds.clear();
+    document.getElementById('store-select-all').checked = false;
+    updateStoreBulkBar();
+    loadStoreProducts();
+  } catch (err) { toast('❌ فشل تنفيذ الإجراء الجماعي'); }
 }
 
 // ── تصنيفات ──────────────────────────────────────────────────────
@@ -2533,11 +2634,14 @@ function filterJomlaProducts() {
   renderJomlaProducts(jomlaProducts.filter(p => (p.name||'').includes(q)));
 }
 
+let jomlaSelectedIds = new Set();
+
 function renderJomlaProducts(list) {
   const tbody = document.getElementById('jomla-prod-table');
-  if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#aaa">لا توجد منتجات</td></tr>'; return; }
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:#aaa">لا توجد منتجات</td></tr>'; return; }
   tbody.innerHTML = list.map(p => `
     <tr>
+      <td><input type="checkbox" data-id="${p.id}" ${jomlaSelectedIds.has(p.id)?'checked':''} onchange="toggleJomlaSelection(${p.id}, this.checked)" style="width:16px;height:16px;cursor:pointer"/></td>
       <td>${p.image_id ? `<img class="prod-thumb" src="${API}/jomla/product-image/${p.image_id}">` : '—'}</td>
       <td>${escapeHtmlAdmin(p.name)}</td>
       <td>
@@ -2680,6 +2784,82 @@ async function deleteJomlaProduct(id) {
   await fetch(`${API}/admin/jomla/products/${id}`, { method: 'DELETE' });
   toast('🗑️ تم الحذف');
   loadJomlaProducts();
+}
+
+// ── تحديد متعدد وإجراء جماعي ─────────────────────────────────────
+function toggleJomlaSelection(id, checked) {
+  if (checked) jomlaSelectedIds.add(id);
+  else jomlaSelectedIds.delete(id);
+  updateJomlaBulkBar();
+}
+
+function toggleAllJomlaSelection(checked) {
+  document.querySelectorAll('#jomla-prod-table input[type=checkbox]').forEach(cb => {
+    cb.checked = checked;
+    const id = Number(cb.dataset.id);
+    if (checked) jomlaSelectedIds.add(id);
+    else jomlaSelectedIds.delete(id);
+  });
+  updateJomlaBulkBar();
+}
+
+function clearJomlaSelection() {
+  jomlaSelectedIds.clear();
+  document.getElementById('jomla-select-all').checked = false;
+  renderJomlaProducts(jomlaProducts);
+  updateJomlaBulkBar();
+}
+
+function updateJomlaBulkBar() {
+  const bar = document.getElementById('jomla-bulk-bar');
+  const n = jomlaSelectedIds.size;
+  bar.style.display = n ? 'flex' : 'none';
+  if (n) {
+    document.getElementById('jomla-bulk-count').textContent = `${n} منتج محدد`;
+    const catSelect = document.getElementById('jomla-bulk-category');
+    catSelect.innerHTML = '<option value="">تغيير التصنيف إلى...</option>' +
+      jomlaCategories.map(c => `<option value="${c.id}">${escapeHtmlAdmin(c.name)}</option>`).join('');
+  }
+}
+
+document.addEventListener('change', (e) => {
+  if (e.target && e.target.id === 'jomla-bulk-category' && e.target.value) {
+    bulkJomlaAction('category', e.target.value);
+    e.target.value = '';
+  }
+});
+
+async function bulkJomlaAction(action, categoryId) {
+  const ids = Array.from(jomlaSelectedIds);
+  if (!ids.length) return;
+
+  if (action === 'delete') {
+    if (!confirm(`هل تريد حذف ${ids.length} منتج نهائياً؟ لا يمكن التراجع.`)) return;
+  }
+
+  try {
+    if (action === 'publish' || action === 'unpublish') {
+      const status = action === 'publish' ? 'published' : 'draft';
+      await Promise.all(ids.map(id => fetch(`${API}/admin/jomla/products/${id}/publish`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })));
+      toast(action === 'publish' ? `✅ تم نشر ${ids.length} منتج` : `↩️ تم إلغاء نشر ${ids.length} منتج`);
+    } else if (action === 'delete') {
+      await Promise.all(ids.map(id => fetch(`${API}/admin/jomla/products/${id}`, { method: 'DELETE' })));
+      toast(`🗑️ تم حذف ${ids.length} منتج`);
+    } else if (action === 'category') {
+      await Promise.all(ids.map(id => fetch(`${API}/admin/jomla/products/${id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categoryId: categoryId || null }),
+      })));
+      toast(`✅ تم تحديث تصنيف ${ids.length} منتج`);
+    }
+    jomlaSelectedIds.clear();
+    document.getElementById('jomla-select-all').checked = false;
+    updateJomlaBulkBar();
+    loadJomlaProducts();
+  } catch (err) { toast('❌ فشل تنفيذ الإجراء الجماعي'); }
 }
 
 // ── تصنيفات ──────────────────────────────────────────────────────
