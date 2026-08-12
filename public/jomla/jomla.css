@@ -383,8 +383,48 @@ img{max-width:100%;display:block;}
   margin-top:10px;
 }
 
+/* الفوتر */
+.store-footer{
+  margin-top:48px;
+  background:#fff;
+  border-top:1px solid var(--border);
+  padding:40px 20px 24px;
+}
+.footer-inner{
+  max-width:1200px;
+  margin:0 auto;
+  display:grid;
+  grid-template-columns:1.3fr 1fr 1fr;
+  gap:32px;
+}
+.footer-brand .footer-logo{height:40px;width:auto;margin-bottom:12px;}
+.footer-brand .footer-tagline{color:var(--text-muted);font-size:13px;line-height:1.8;max-width:280px;}
+.footer-col h4{font-size:14px;font-weight:bold;margin:0 0 14px;color:var(--text);}
+.footer-col ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;}
+.footer-col a{color:var(--text-muted);font-size:13px;text-decoration:none;}
+.footer-col a:hover{color:var(--pink);}
+.footer-social{display:flex;gap:10px;margin-top:4px;}
+.footer-social a{
+  width:34px;height:34px;border-radius:50%;
+  background:var(--pink-light);color:var(--pink);
+  display:flex;align-items:center;justify-content:center;
+}
+.footer-social a:hover{background:var(--pink);color:#fff;}
+.footer-bottom{
+  max-width:1200px;
+  margin:32px auto 0;
+  padding-top:20px;
+  border-top:1px solid var(--border);
+  text-align:center;
+  color:var(--text-muted);
+  font-size:12px;
+}
+
 /* ── الجوال — يجب أن يبقى هذا آخر شي بالملف (يفوز بالتسلسل على كل القواعد أعلاه) ── */
 @media (max-width:640px){
   .product-grid,.category-grid{grid-template-columns:1fr 1fr !important;gap:12px;padding:14px;}
   .banner-slider{aspect-ratio:16/9;margin-top:0;border-radius:0;}
+  .footer-inner{grid-template-columns:1fr;gap:24px;text-align:center;}
+  .footer-brand .footer-tagline{max-width:none;margin:0 auto;}
+  .footer-social{justify-content:center;}
 }
