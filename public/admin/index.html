@@ -1158,8 +1158,8 @@ function showTab(name) {
   });
   if (name === 'notify') loadNotifLog();
   if (name === 'settings' && !settingsLoaded) { settingsLoaded = true; loadSettings(); }
-  if (name === 'store' && !storeLoaded) { storeLoaded = true; loadStoreProducts(); loadStoreCategories(); }
-  if (name === 'jomla' && !jomlaLoaded) { jomlaLoaded = true; loadJomlaProducts(); loadJomlaCategories(); }
+  if (name === 'store' && !storeLoaded) { storeLoaded = true; loadStoreCategories().then(loadStoreProducts); }
+  if (name === 'jomla' && !jomlaLoaded) { jomlaLoaded = true; loadJomlaCategories().then(loadJomlaProducts); }
   if (name === 'landing' && !landingLoaded) { landingLoaded = true; loadLandingSettings(); }
 }
 
@@ -2025,7 +2025,13 @@ function renderStoreProducts(list) {
     <tr>
       <td>${p.image_id ? `<img class="prod-thumb" src="${API}/store/product-image/${p.image_id}">` : '—'}</td>
       <td>${escapeHtmlAdmin(p.name)}</td>
-      <td>${escapeHtmlAdmin(p.category_name || '—')}</td>
+      <td>
+        <select onchange="saveStoreProductCategory(${p.id}, this.value)"
+          style="padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px">
+          <option value="">— بدون تصنيف —</option>
+          ${storeCategories.map(c => `<option value="${c.id}"${String(p.category_id) === String(c.id) ? ' selected' : ''}>${escapeHtmlAdmin(c.name)}</option>`).join('')}
+        </select>
+      </td>
       <td>
         ${p.price} ${escapeHtmlAdmin(p.currency||'SAR')}
         ${p.compare_at_price && Number(p.compare_at_price) > Number(p.price) ? `<br><span style="color:var(--gray);font-size:12px;text-decoration:line-through">${p.compare_at_price}</span>` : ''}
@@ -2048,6 +2054,24 @@ function renderStoreProducts(list) {
 function fillCategorySelect(selectEl, selectedId) {
   selectEl.innerHTML = '<option value="">— بدون تصنيف —</option>' +
     storeCategories.map(c => `<option value="${c.id}" ${c.id==selectedId?'selected':''}>${escapeHtmlAdmin(c.name)}</option>`).join('');
+}
+
+async function saveStoreProductCategory(id, categoryId) {
+  try {
+    const res = await fetch(`${API}/admin/store/products/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ categoryId: categoryId || null }),
+    });
+    if (!res.ok) throw new Error();
+    const item = storeProducts.find(p => p.id === id);
+    if (item) {
+      item.category_id = categoryId || null;
+      const cat = storeCategories.find(c => String(c.id) === String(categoryId));
+      item.category_name = cat ? cat.name : null;
+    }
+    toast('✅ تم تحديث التصنيف');
+  } catch (err) { toast('❌ تعذر تحديث التصنيف'); }
 }
 
 function openAddProduct() {
@@ -2454,7 +2478,13 @@ function renderJomlaProducts(list) {
     <tr>
       <td>${p.image_id ? `<img class="prod-thumb" src="${API}/jomla/product-image/${p.image_id}">` : '—'}</td>
       <td>${escapeHtmlAdmin(p.name)}</td>
-      <td>${escapeHtmlAdmin(p.category_name || '—')}</td>
+      <td>
+        <select onchange="saveJomlaProductCategory(${p.id}, this.value)"
+          style="padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px">
+          <option value="">— بدون تصنيف —</option>
+          ${jomlaCategories.map(c => `<option value="${c.id}"${String(p.category_id) === String(c.id) ? ' selected' : ''}>${escapeHtmlAdmin(c.name)}</option>`).join('')}
+        </select>
+      </td>
       <td>
         ${p.price} ${escapeHtmlAdmin(p.currency||'SAR')}
         ${p.compare_at_price && Number(p.compare_at_price) > Number(p.price) ? `<br><span style="color:var(--gray);font-size:12px;text-decoration:line-through">${p.compare_at_price}</span>` : ''}
@@ -2477,6 +2507,24 @@ function renderJomlaProducts(list) {
 function fillJomlaCategorySelect(selectEl, selectedId) {
   selectEl.innerHTML = '<option value="">— بدون تصنيف —</option>' +
     jomlaCategories.map(c => `<option value="${c.id}" ${c.id==selectedId?'selected':''}>${escapeHtmlAdmin(c.name)}</option>`).join('');
+}
+
+async function saveJomlaProductCategory(id, categoryId) {
+  try {
+    const res = await fetch(`${API}/admin/jomla/products/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ categoryId: categoryId || null }),
+    });
+    if (!res.ok) throw new Error();
+    const item = jomlaProducts.find(p => p.id === id);
+    if (item) {
+      item.category_id = categoryId || null;
+      const cat = jomlaCategories.find(c => String(c.id) === String(categoryId));
+      item.category_name = cat ? cat.name : null;
+    }
+    toast('✅ تم تحديث التصنيف');
+  } catch (err) { toast('❌ تعذر تحديث التصنيف'); }
 }
 
 function openAddJomlaProduct() {
