@@ -2677,6 +2677,13 @@ function jomlaProductRowHtml(p, opts) {
         ${p.compare_at_price && Number(p.compare_at_price) > Number(p.price) ? `<br><span style="color:var(--gray);font-size:12px;text-decoration:line-through">${p.compare_at_price}</span>` : ''}
       </td>
       <td>
+        <input type="number" min="0" step="1" data-stock-id="${p.id}"
+          value="${p.stock_quantity === null || p.stock_quantity === undefined ? '' : p.stock_quantity}"
+          placeholder="بدون حد" title="اترك فارغاً لمخزون غير محدود"
+          style="width:78px;padding:6px 8px;border:1.5px solid ${outOfStock ? '#e57373' : 'var(--border)'};border-radius:8px;font-family:inherit;font-size:13px"
+          onchange="saveJomlaStockInline(${p.id}, this)"/>
+      </td>
+      <td>
         <span style="padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;
           background:${p.status==='published'?'#e8f5e9':'#fff3e0'};color:${p.status==='published'?'#2e7d32':'#e65100'}">
           ${p.status==='published' ? 'منشور' : 'مسودة'}
@@ -2696,7 +2703,7 @@ function jomlaTableHead(withHandle) {
   return `<thead><tr>
     ${withHandle ? '<th style="width:28px"></th>' : '<th></th>'}
     <th><input type="checkbox" onchange="toggleAllJomlaSelection(this.checked)" style="width:16px;height:16px;cursor:pointer"/></th>
-    <th>صورة</th><th>الاسم</th><th>التصنيف</th><th>السعر</th><th>الحالة</th><th>إجراءات</th>
+    <th>صورة</th><th>الاسم</th><th>التصنيف</th><th>السعر</th><th>المخزون</th><th>الحالة</th><th>إجراءات</th>
   </tr></thead>`;
 }
 
@@ -2739,7 +2746,7 @@ function renderJomlaProducts(list, flat) {
     const body = collapsed ? '' : `<div class="table-wrap" style="margin-top:8px"><table>${jomlaTableHead(true)}
       <tbody data-cat="${g.id}">${
         g.items.length ? g.items.map(p => jomlaProductRowHtml(p, { draggable: g.id !== 0 })).join('')
-                       : `<tr><td colspan="8" style="text-align:center;padding:16px;color:#aaa">لا توجد منتجات بهذا التصنيف</td></tr>`
+                       : `<tr><td colspan="9" style="text-align:center;padding:16px;color:#aaa">لا توجد منتجات بهذا التصنيف</td></tr>`
       }</tbody></table></div>`;
     return `
     <div style="margin-bottom:18px">
@@ -2752,6 +2759,32 @@ function renderJomlaProducts(list, flat) {
       ${body}
     </div>`;
   }).join('');
+}
+
+// حفظ المخزون مباشرة من جدول المنتجات (نفس منطق تبويب المخزون)
+async function saveJomlaStockInline(id, inputEl) {
+  const raw = inputEl.value.trim();
+  const stockQuantity = raw === '' ? null : parseInt(raw);
+  if (stockQuantity !== null && (isNaN(stockQuantity) || stockQuantity < 0)) {
+    toast('❌ الكمية يجب أن تكون رقماً موجباً أو فارغة'); return;
+  }
+  try {
+    const res = await fetch(`${API}/admin/jomla/inventory/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stockQuantity }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'فشل الحفظ');
+    // حدّث النسخة المحلية وأعد رسم الجدول لتحديث شارة "غير متوفر" وحدود الخانة
+    const item = jomlaProducts.find(p => p.id === id);
+    if (item) item.stock_quantity = stockQuantity;
+    const invItem = (jomlaInventory || []).find(p => p.id === id);
+    if (invItem) invItem.stock_quantity = stockQuantity;
+    const q = document.getElementById('jomla-prod-search').value.trim();
+    if (q) renderJomlaProducts(jomlaProducts.filter(p => (p.name||'').includes(q)), true);
+    else renderJomlaProducts(jomlaProducts);
+    toast('✅ تم تحديث الكمية');
+  } catch (err) { toast('❌ ' + err.message); }
 }
 
 function toggleJomlaCatCollapse(catId) {
