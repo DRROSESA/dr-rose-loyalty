@@ -138,6 +138,10 @@ module.exports = function registerJomlaStore(app, getDB, CONFIG) {
     await db.execute(`ALTER TABLE jomla_products ADD COLUMN IF NOT EXISTS stock_note VARCHAR(60) NULL`).catch(() => {});
     // stock_quantity = NULL يعني مخزون غير مُتابَع (بدون حد)؛ رقم فعلي (بما فيها 0) يُفعّل التحقق من التوفر
     await db.execute(`ALTER TABLE jomla_products ADD COLUMN IF NOT EXISTS stock_quantity INT NULL`).catch(() => {});
+    // ترتيب يدوي للمنتجات داخل كل تصنيف (سحب/أزرار بلوحة التحكم) — الأصغر يظهر أولاً
+    await db.execute(`ALTER TABLE jomla_products ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0`).catch(() => {});
+    // صورة مخصصة للتصنيف — تشير لصف بجدول jomla_media (BLOB). NULL = يرجع لصورة أول منتج تلقائياً
+    await db.execute(`ALTER TABLE jomla_categories ADD COLUMN IF NOT EXISTS image_media_id INT NULL`).catch(() => {});
     await db.execute(`
       CREATE TABLE IF NOT EXISTS jomla_product_images (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -150,6 +154,20 @@ module.exports = function registerJomlaStore(app, getDB, CONFIG) {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_product (product_id),
         FOREIGN KEY (product_id) REFERENCES jomla_products(id) ON DELETE CASCADE
+      )
+    `);
+    // وسائط عامة (صور التصنيفات + بنرات الصفحة الرئيسية) مخزّنة كـ BLOB مثل صور المنتجات
+    // kind: 'category' لصورة تصنيف، 'banner' لشريحة بنر بالصفحة الرئيسية
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS jomla_media (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        kind VARCHAR(20) NOT NULL DEFAULT 'category',
+        image_data LONGBLOB NOT NULL,
+        mime_type VARCHAR(50) DEFAULT 'image/jpeg',
+        sort_order INT DEFAULT 0,
+        active TINYINT(1) DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_kind (kind)
       )
     `);
     await db.execute(`
@@ -216,16 +234,21 @@ module.exports = function registerJomlaStore(app, getDB, CONFIG) {
     try {
       const db = await getDB();
       const [rows] = await db.execute(
-        `SELECT c.id, c.name, c.slug, c.description,
+        `SELECT c.id, c.name, c.slug, c.description, c.image_media_id,
                 (SELECT pi.id FROM jomla_product_images pi
                  JOIN jomla_products p ON p.id = pi.product_id
                  WHERE p.category_id = c.id AND p.status = 'published'
-                 ORDER BY pi.is_primary DESC, pi.sort_order LIMIT 1) AS image_id
+                 ORDER BY pi.is_primary DESC, pi.sort_order LIMIT 1) AS product_image_id
          FROM jomla_categories c
          WHERE c.active = 1
          ORDER BY c.sort_order, c.name`
       );
-      res.json(rows);
+      // media_id يشير لصورة مخصصة للتصنيف (jomla_media)؛ image_id يبقى للتوافق (صورة أول منتج)
+      res.json(rows.map(r => ({
+        id: r.id, name: r.name, slug: r.slug, description: r.description,
+        media_id: r.image_media_id || null,
+        image_id: r.product_image_id || null,
+      })));
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
@@ -249,7 +272,7 @@ module.exports = function registerJomlaStore(app, getDB, CONFIG) {
          FROM jomla_products p
          LEFT JOIN jomla_categories c ON c.id = p.category_id
          WHERE ${where}
-         ORDER BY p.created_at DESC
+         ORDER BY p.sort_order ASC, p.created_at DESC
          LIMIT ${perPage} OFFSET ${offset}`,
         params
       );
@@ -284,6 +307,32 @@ module.exports = function registerJomlaStore(app, getDB, CONFIG) {
       res.set('Content-Type', row.mime_type || 'image/jpeg');
       res.set('Cache-Control', 'public, max-age=86400');
       res.send(row.image_data);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // تقديم صور الوسائط العامة (تصنيفات + بنرات)
+  app.get('/jomla/media/:id', async (req, res) => {
+    try {
+      const db = await getDB();
+      const [[row]] = await db.execute(
+        `SELECT image_data, mime_type FROM jomla_media WHERE id = ?`,
+        [req.params.id]
+      );
+      if (!row) return res.sendStatus(404);
+      res.set('Content-Type', row.mime_type || 'image/jpeg');
+      res.set('Cache-Control', 'public, max-age=86400');
+      res.send(row.image_data);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // شرائح البنر للصفحة الرئيسية — إن وُجدت بنرات مخصصة تُستخدم، وإلا ترجع الواجهة لصور المنتجات
+  app.get('/jomla/api/banners', async (req, res) => {
+    try {
+      const db = await getDB();
+      const [rows] = await db.execute(
+        `SELECT id FROM jomla_media WHERE kind = 'banner' AND active = 1 ORDER BY sort_order, id`
+      );
+      res.json({ banners: rows.map(r => r.id) });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
@@ -527,7 +576,7 @@ ${renderFooterHtml(siteInfo, '/jomla', 'أسعار جملة على باقات ا
                 (SELECT id FROM jomla_product_images WHERE product_id = p.id ORDER BY is_primary DESC, sort_order LIMIT 1) AS image_id
          FROM jomla_products p
          LEFT JOIN jomla_categories c ON c.id = p.category_id
-         ORDER BY p.created_at DESC`
+         ORDER BY p.sort_order ASC, p.created_at DESC`
       );
       res.json(rows);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -704,6 +753,110 @@ ${renderFooterHtml(siteInfo, '/jomla', 'أسعار جملة على باقات ا
     try {
       const db = await getDB();
       await db.execute(`DELETE FROM jomla_categories WHERE id = ?`, [req.params.id]);
+      res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // ─── ترتيب المنتجات والتصنيفات (سحب/أزرار بلوحة التحكم) ──────────────────
+  // يستقبل مصفوفة معرفات بالترتيب المطلوب ويكتب sort_order = الموضع
+  app.put('/admin/jomla/reorder-products', async (req, res) => {
+    try {
+      const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
+      if (!ids.length) return res.status(400).json({ error: 'قائمة المعرفات مطلوبة' });
+      const db = await getDB();
+      for (let i = 0; i < ids.length; i++) {
+        await db.execute(`UPDATE jomla_products SET sort_order = ? WHERE id = ?`, [i, ids[i]]);
+      }
+      res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.put('/admin/jomla/reorder-categories', async (req, res) => {
+    try {
+      const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
+      if (!ids.length) return res.status(400).json({ error: 'قائمة المعرفات مطلوبة' });
+      const db = await getDB();
+      for (let i = 0; i < ids.length; i++) {
+        await db.execute(`UPDATE jomla_categories SET sort_order = ? WHERE id = ?`, [i, ids[i]]);
+      }
+      res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // ─── صورة التصنيف المخصصة ───────────────────────────────────────────────
+  app.post('/admin/jomla/categories/:id/image', upload.single('image'), async (req, res) => {
+    try {
+      if (!req.file) return res.status(400).json({ error: 'الصورة مطلوبة' });
+      const db = await getDB();
+      const [result] = await db.execute(
+        `INSERT INTO jomla_media (kind, image_data, mime_type) VALUES ('category', ?, ?)`,
+        [req.file.buffer, req.file.mimetype]
+      );
+      // احذف الصورة القديمة إن وُجدت ثم اربط الجديدة
+      const [[cat]] = await db.execute(`SELECT image_media_id FROM jomla_categories WHERE id = ?`, [req.params.id]);
+      await db.execute(`UPDATE jomla_categories SET image_media_id = ? WHERE id = ?`, [result.insertId, req.params.id]);
+      if (cat && cat.image_media_id) {
+        await db.execute(`DELETE FROM jomla_media WHERE id = ?`, [cat.image_media_id]).catch(() => {});
+      }
+      res.json({ success: true, mediaId: result.insertId });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.delete('/admin/jomla/categories/:id/image', async (req, res) => {
+    try {
+      const db = await getDB();
+      const [[cat]] = await db.execute(`SELECT image_media_id FROM jomla_categories WHERE id = ?`, [req.params.id]);
+      await db.execute(`UPDATE jomla_categories SET image_media_id = NULL WHERE id = ?`, [req.params.id]);
+      if (cat && cat.image_media_id) {
+        await db.execute(`DELETE FROM jomla_media WHERE id = ?`, [cat.image_media_id]).catch(() => {});
+      }
+      res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // ─── بنرات الصفحة الرئيسية ──────────────────────────────────────────────
+  app.get('/admin/jomla/banners', async (req, res) => {
+    try {
+      const db = await getDB();
+      const [rows] = await db.execute(
+        `SELECT id, sort_order, active FROM jomla_media WHERE kind = 'banner' ORDER BY sort_order, id`
+      );
+      res.json(rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.post('/admin/jomla/banners', upload.array('images', 10), async (req, res) => {
+    try {
+      if (!req.files || !req.files.length) return res.status(400).json({ error: 'الصور مطلوبة' });
+      const db = await getDB();
+      const [[{ mx }]] = await db.execute(`SELECT COALESCE(MAX(sort_order), -1) AS mx FROM jomla_media WHERE kind = 'banner'`);
+      let order = Number(mx) + 1;
+      for (const file of req.files) {
+        await db.execute(
+          `INSERT INTO jomla_media (kind, image_data, mime_type, sort_order) VALUES ('banner', ?, ?, ?)`,
+          [file.buffer, file.mimetype, order++]
+        );
+      }
+      res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.delete('/admin/jomla/banners/:id', async (req, res) => {
+    try {
+      const db = await getDB();
+      await db.execute(`DELETE FROM jomla_media WHERE id = ? AND kind = 'banner'`, [req.params.id]);
+      res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.put('/admin/jomla/reorder-banners', async (req, res) => {
+    try {
+      const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
+      if (!ids.length) return res.status(400).json({ error: 'قائمة المعرفات مطلوبة' });
+      const db = await getDB();
+      for (let i = 0; i < ids.length; i++) {
+        await db.execute(`UPDATE jomla_media SET sort_order = ? WHERE id = ? AND kind = 'banner'`, [i, ids[i]]);
+      }
       res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });

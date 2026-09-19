@@ -94,15 +94,26 @@ async function loadBanner() {
   const skeleton = document.getElementById('banner-skeleton');
   const slider = document.getElementById('banner-slider');
   try {
-    const res = await fetch(API + '/jomla/api/products');
-    const data = await res.json();
-    const images = (data.products || []).filter(p => p.image_id).slice(0, 6);
+    // بنرات مخصصة من لوحة التحكم أولاً؛ إن لم توجد نرجع لصور المنتجات تلقائياً
+    let slides = [];
+    try {
+      const bRes = await fetch(API + '/jomla/api/banners');
+      const bData = await bRes.json();
+      slides = (bData.banners || []).map(id => ({ src: '/jomla/media/' + id, alt: '' }));
+    } catch (e) {}
+    if (!slides.length) {
+      const res = await fetch(API + '/jomla/api/products');
+      const data = await res.json();
+      slides = (data.products || []).filter(p => p.image_id).slice(0, 6)
+        .map(p => ({ src: '/jomla/product-image/' + p.image_id, alt: p.name }));
+    }
     skeleton.style.display = 'none';
-    if (!images.length) { return; }
+    if (!slides.length) { return; }
     slider.style.display = '';
-    slider.innerHTML = images.map((p, i) => `
-      <img class="slide ${i === 0 ? 'active' : ''}" src="/jomla/product-image/${p.image_id}" alt="${escapeHtml(p.name)}">
+    slider.innerHTML = slides.map((s, i) => `
+      <img class="slide ${i === 0 ? 'active' : ''}" src="${s.src}" alt="${escapeHtml(s.alt || '')}">
     `).join('');
+    const images = slides;
     if (images.length > 1) {
       let idx = 0;
       setInterval(() => {
@@ -136,7 +147,7 @@ async function loadCategories() {
       ...allCategories.map(c => `
       <a href="#${encodeURIComponent(c.slug)}" class="category-card" data-slug="${escapeHtml(c.slug)}">
         <img class="thumb" loading="lazy"
-             src="${c.image_id ? '/jomla/product-image/' + c.image_id : ''}"
+             src="${c.media_id ? '/jomla/media/' + c.media_id : (c.image_id ? '/jomla/product-image/' + c.image_id : '')}"
              alt="${escapeHtml(c.name)}"
              onerror="this.style.background='#fce4ec'">
         <div class="name">${escapeHtml(c.name)}</div>

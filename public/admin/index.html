@@ -651,6 +651,7 @@
   <div class="store-subnav">
     <button class="store-subtab active" onclick="showJomlaSection('products')">📦 المنتجات</button>
     <button class="store-subtab" onclick="showJomlaSection('categories')">🗂️ التصنيفات</button>
+    <button class="store-subtab" onclick="showJomlaSection('banners')">🖼️ البنر</button>
     <button class="store-subtab" onclick="showJomlaSection('scraper')">🔗 السكرابر</button>
     <button class="store-subtab" onclick="showJomlaSection('orders')">🛒 السلال</button>
     <button class="store-subtab" onclick="showJomlaSection('inventory')">📊 المخزون</button>
@@ -672,22 +673,8 @@
       <button class="btn btn-warn btn-sm" onclick="bulkJomlaAction('delete')">حذف</button>
       <button class="btn btn-gray btn-sm" style="margin-right:auto" onclick="clearJomlaSelection()">إلغاء التحديد</button>
     </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th><input type="checkbox" id="jomla-select-all" onchange="toggleAllJomlaSelection(this.checked)" style="width:16px;height:16px;cursor:pointer"/></th>
-            <th>صورة</th>
-            <th>الاسم</th>
-            <th>التصنيف</th>
-            <th>السعر</th>
-            <th>الحالة</th>
-            <th>إجراءات</th>
-          </tr>
-        </thead>
-        <tbody id="jomla-prod-table"></tbody>
-      </table>
-    </div>
+    <p style="font-size:12px;color:var(--gray);margin:0 0 10px">اسحب المنتج من مقبض ⠿ لإعادة ترتيبه داخل تصنيفه، أو استخدم أسهم ▲▼. الترتيب ينعكس مباشرة على المتجر.</p>
+    <div id="jomla-prod-groups"></div>
   </div>
 
   <!-- تصنيفات -->
@@ -695,10 +682,13 @@
     <div class="search-row">
       <button class="btn btn-primary btn-sm" onclick="openAddJomlaCategory()">+ تصنيف جديد</button>
     </div>
+    <p style="font-size:12px;color:var(--gray);margin:0 0 10px">اسحب من مقبض ⠿ أو استخدم أسهم ▲▼ لترتيب التصنيفات كما تظهر بالمتجر.</p>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
+            <th style="width:28px"></th>
+            <th>صورة</th>
             <th>الاسم</th>
             <th>الرابط</th>
             <th>مفعّل</th>
@@ -708,6 +698,20 @@
         <tbody id="jomla-cat-table"></tbody>
       </table>
     </div>
+  </div>
+
+  <!-- البنر -->
+  <div id="jomla-section-banners" style="display:none">
+    <p style="font-size:13px;color:var(--gray);margin-bottom:14px">
+      صور شريط البنر بأعلى الصفحة الرئيسية للمتجر. إن لم تُضف أي صورة هنا، يعرض المتجر تلقائياً صوراً من أحدث المنتجات (السلوك الافتراضي). اسحب ⠿ أو استخدم ▲▼ لترتيب الشرائح.
+    </p>
+    <div class="search-row">
+      <label class="btn btn-primary btn-sm" style="cursor:pointer">
+        + إضافة صور بنر
+        <input type="file" id="jomla-banner-file" accept="image/*" multiple style="display:none" onchange="uploadJomlaBanners(this)"/>
+      </label>
+    </div>
+    <div id="jomla-banner-list" style="display:flex;flex-wrap:wrap;gap:12px;margin-top:8px"></div>
   </div>
 
   <!-- السكرابر -->
@@ -1087,6 +1091,17 @@
     <input id="jomla-cat-name" placeholder="ورد جملة"/>
     <label>الوصف (اختياري)</label>
     <input id="jomla-cat-desc"/>
+    <div id="jomla-cat-image-row" style="display:none;margin-top:14px">
+      <label>صورة التصنيف</label>
+      <p style="font-size:12px;color:var(--gray);margin:2px 0 8px">تظهر بشبكة التصنيفات بالمتجر. إن لم تُرفع صورة تُستخدم صورة أول منتج تلقائياً.</p>
+      <div style="display:flex;align-items:center;gap:12px">
+        <img id="jomla-cat-image-preview" style="width:70px;height:70px;object-fit:cover;border-radius:10px;background:var(--pink-light);display:none"/>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <input type="file" id="jomla-cat-image-file" accept="image/*" style="font-size:13px"/>
+          <button type="button" class="btn btn-warn btn-sm" id="jomla-cat-image-remove" style="display:none;align-self:flex-start" onclick="removeJomlaCategoryImage()">إزالة الصورة الحالية</button>
+        </div>
+      </div>
+    </div>
     <div class="modal-btns">
       <button class="btn btn-primary" style="flex:1" onclick="saveJomlaCategory()">حفظ</button>
       <button class="btn btn-gray" onclick="closeModal('modal-jomla-category')">إلغاء</button>
@@ -2607,14 +2622,17 @@ let jomlaCategories = [];
 let jomlaScrapedData = null;
 
 function showJomlaSection(name) {
-  ['products','categories','scraper','orders','inventory'].forEach(s => {
+  ['products','categories','banners','scraper','orders','inventory'].forEach(s => {
     document.getElementById(`jomla-section-${s}`).style.display = s===name ? '' : 'none';
   });
-  document.querySelectorAll('.store-subtab').forEach((el,i) => {
-    el.classList.toggle('active', ['products','categories','scraper','orders','inventory'][i] === name);
+  // استهدف أزرار تبويب الجملة فقط (عبر onclick) بدل الفهرسة العامة الهشّة
+  document.querySelectorAll('#tab-jomla .store-subnav .store-subtab').forEach(el => {
+    const m = (el.getAttribute('onclick') || '').match(/showJomlaSection\('(\w+)'\)/);
+    if (m) el.classList.toggle('active', m[1] === name);
   });
   if (name === 'orders') loadJomlaOrders();
   if (name === 'inventory') loadJomlaInventory();
+  if (name === 'banners') loadJomlaBanners();
 }
 
 // escapeHtmlAdmin مُعرّفة مسبقاً بقسم المتجر (نفس الدالة بالضبط، لا حاجة لتكرارها)
@@ -2631,19 +2649,22 @@ async function loadJomlaProducts() {
 function filterJomlaProducts() {
   const q = document.getElementById('jomla-prod-search').value.trim();
   if (!q) return renderJomlaProducts(jomlaProducts);
-  renderJomlaProducts(jomlaProducts.filter(p => (p.name||'').includes(q)));
+  renderJomlaProducts(jomlaProducts.filter(p => (p.name||'').includes(q)), true);
 }
 
 let jomlaSelectedIds = new Set();
+let jomlaCollapsedCats = new Set(); // معرفات التصنيفات المطويّة (بالعرض المجمّع)
 
-function renderJomlaProducts(list) {
-  const tbody = document.getElementById('jomla-prod-table');
-  if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:#aaa">لا توجد منتجات</td></tr>'; return; }
-  tbody.innerHTML = list.map(p => `
-    <tr>
+// صف منتج واحد. draggable=true فقط بالعرض المجمّع (بدون بحث) للسماح بالترتيب.
+function jomlaProductRowHtml(p, opts) {
+  const draggable = opts && opts.draggable;
+  const outOfStock = p.stock_quantity !== null && p.stock_quantity <= 0;
+  return `
+    <tr data-id="${p.id}" ${draggable ? `draggable="true" ondragstart="jomlaDragStart(event,${p.id})" ondragover="jomlaDragOver(event)" ondrop="jomlaDrop(event,${p.id})" ondragend="jomlaDragEnd(event)"` : ''}>
+      <td style="width:28px">${draggable ? '<span style="cursor:grab;color:#bbb;font-size:16px;user-select:none">⠿</span>' : ''}</td>
       <td><input type="checkbox" data-id="${p.id}" ${jomlaSelectedIds.has(p.id)?'checked':''} onchange="toggleJomlaSelection(${p.id}, this.checked)" style="width:16px;height:16px;cursor:pointer"/></td>
       <td>${p.image_id ? `<img class="prod-thumb" src="${API}/jomla/product-image/${p.image_id}">` : '—'}</td>
-      <td>${escapeHtmlAdmin(p.name)}</td>
+      <td>${escapeHtmlAdmin(p.name)}${outOfStock ? '<br>' + outOfStockBadge() : ''}</td>
       <td>
         <select onchange="saveJomlaProductCategory(${p.id}, this.value)"
           style="padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px">
@@ -2661,13 +2682,120 @@ function renderJomlaProducts(list) {
           ${p.status==='published' ? 'منشور' : 'مسودة'}
         </span>
       </td>
-      <td style="display:flex;gap:6px;flex-wrap:wrap">
+      <td style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        ${draggable ? `<button class="btn btn-gray btn-sm" title="أعلى" onclick="jomlaMoveProduct(${p.id},-1)">▲</button>
+        <button class="btn btn-gray btn-sm" title="أسفل" onclick="jomlaMoveProduct(${p.id},1)">▼</button>` : ''}
         <button class="btn btn-gray btn-sm" onclick="openEditJomlaProduct(${p.id})">تعديل</button>
         <button class="btn btn-primary btn-sm" onclick="toggleJomlaProductPublish(${p.id}, '${p.status}')">${p.status==='published' ? 'إلغاء النشر' : 'نشر'}</button>
         <button class="btn btn-warn btn-sm" onclick="deleteJomlaProduct(${p.id})">حذف</button>
       </td>
-    </tr>
-  `).join('');
+    </tr>`;
+}
+
+function jomlaTableHead(withHandle) {
+  return `<thead><tr>
+    ${withHandle ? '<th style="width:28px"></th>' : '<th></th>'}
+    <th><input type="checkbox" onchange="toggleAllJomlaSelection(this.checked)" style="width:16px;height:16px;cursor:pointer"/></th>
+    <th>صورة</th><th>الاسم</th><th>التصنيف</th><th>السعر</th><th>الحالة</th><th>إجراءات</th>
+  </tr></thead>`;
+}
+
+// flat=true عند البحث (قائمة واحدة مسطّحة، بدون سحب). خلاف ذلك مجموعات حسب التصنيف.
+function renderJomlaProducts(list, flat) {
+  const container = document.getElementById('jomla-prod-groups');
+  if (!list.length) {
+    container.innerHTML = '<div class="table-wrap"><div style="text-align:center;padding:20px;color:#aaa">لا توجد منتجات</div></div>';
+    return;
+  }
+  if (flat) {
+    container.innerHTML = `<div class="table-wrap"><table>${jomlaTableHead(false)}<tbody>${
+      list.map(p => jomlaProductRowHtml(p, { draggable: false })).join('')
+    }</tbody></table></div>`;
+    return;
+  }
+  // تجميع حسب التصنيف بترتيب jomlaCategories، ثم "بدون تصنيف" أخيراً
+  const groups = jomlaCategories.map(c => ({
+    id: c.id, name: c.name,
+    items: list.filter(p => String(p.category_id) === String(c.id)),
+  }));
+  const uncategorized = list.filter(p => !p.category_id);
+  if (uncategorized.length) groups.push({ id: 0, name: 'بدون تصنيف', items: uncategorized });
+
+  container.innerHTML = groups.map(g => {
+    const collapsed = jomlaCollapsedCats.has(g.id);
+    const body = collapsed ? '' : `<div class="table-wrap" style="margin-top:8px"><table>${jomlaTableHead(true)}
+      <tbody data-cat="${g.id}">${
+        g.items.length ? g.items.map(p => jomlaProductRowHtml(p, { draggable: g.id !== 0 })).join('')
+                       : `<tr><td colspan="8" style="text-align:center;padding:16px;color:#aaa">لا توجد منتجات بهذا التصنيف</td></tr>`
+      }</tbody></table></div>`;
+    return `
+    <div style="margin-bottom:18px">
+      <div onclick="toggleJomlaCatCollapse(${g.id})"
+        style="display:flex;align-items:center;gap:10px;cursor:pointer;background:var(--pink-light);border-radius:12px;padding:12px 16px">
+        <span style="font-size:13px;color:var(--pink-dark);transition:transform .15s;${collapsed?'':'transform:rotate(90deg)'}">▶</span>
+        <strong style="font-size:15px;color:var(--text)">${escapeHtmlAdmin(g.name)}</strong>
+        <span style="font-size:12px;color:var(--gray)">(${g.items.length})</span>
+      </div>
+      ${body}
+    </div>`;
+  }).join('');
+}
+
+function toggleJomlaCatCollapse(catId) {
+  if (jomlaCollapsedCats.has(catId)) jomlaCollapsedCats.delete(catId);
+  else jomlaCollapsedCats.add(catId);
+  renderJomlaProducts(jomlaProducts);
+}
+
+// ─── سحب وإفلات + أزرار ترتيب المنتجات داخل تصنيف واحد ───────────────────
+let jomlaDragId = null;
+function jomlaDragStart(e, id) { jomlaDragId = id; e.dataTransfer.effectAllowed = 'move'; }
+function jomlaDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+function jomlaDragEnd(e) { jomlaDragId = null; }
+function jomlaDrop(e, targetId) {
+  e.preventDefault();
+  if (jomlaDragId === null || jomlaDragId === targetId) return;
+  const src = jomlaProducts.find(p => p.id === jomlaDragId);
+  const tgt = jomlaProducts.find(p => p.id === targetId);
+  if (!src || !tgt || String(src.category_id) !== String(tgt.category_id)) return; // نفس التصنيف فقط
+  reorderJomlaWithin(src.category_id, jomlaDragId, targetId);
+}
+
+// يحرّك منتجاً خطوة لأعلى (-1) أو أسفل (1) داخل تصنيفه
+function jomlaMoveProduct(id, dir) {
+  const p = jomlaProducts.find(x => x.id === id);
+  if (!p) return;
+  const siblings = jomlaProducts.filter(x => String(x.category_id) === String(p.category_id));
+  const idx = siblings.findIndex(x => x.id === id);
+  const swapIdx = idx + dir;
+  if (swapIdx < 0 || swapIdx >= siblings.length) return;
+  reorderJomlaWithin(p.category_id, id, siblings[swapIdx].id);
+}
+
+// يعيد ترتيب المنتجات داخل تصنيف واحد محلياً ثم يحفظ الترتيب على السيرفر
+async function reorderJomlaWithin(categoryId, dragId, targetId) {
+  const siblings = jomlaProducts.filter(x => String(x.category_id) === String(categoryId));
+  const from = siblings.findIndex(x => x.id === dragId);
+  const to = siblings.findIndex(x => x.id === targetId);
+  if (from < 0 || to < 0) return;
+  const [moved] = siblings.splice(from, 1);
+  siblings.splice(to, 0, moved);
+  // أعد بناء jomlaProducts: كل تصنيف بترتيب jomlaCategories، ثم "بدون تصنيف"
+  const byCat = {};
+  jomlaProducts.forEach(p => { const k = p.category_id ? String(p.category_id) : '0'; (byCat[k] ||= []).push(p); });
+  byCat[categoryId ? String(categoryId) : '0'] = siblings;
+  const rebuilt = [];
+  jomlaCategories.forEach(c => (byCat[String(c.id)] || []).forEach(p => rebuilt.push(p)));
+  (byCat['0'] || []).forEach(p => rebuilt.push(p));
+  jomlaProducts = rebuilt;
+  renderJomlaProducts(jomlaProducts);
+  try {
+    await fetch(`${API}/admin/jomla/reorder-products`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: siblings.map(p => p.id) }),
+    });
+    toast('✅ تم حفظ الترتيب');
+  } catch (e) { toast('❌ تعذر حفظ الترتيب'); }
 }
 
 function fillJomlaCategorySelect(selectEl, selectedId) {
@@ -2794,7 +2922,8 @@ function toggleJomlaSelection(id, checked) {
 }
 
 function toggleAllJomlaSelection(checked) {
-  document.querySelectorAll('#jomla-prod-table input[type=checkbox]').forEach(cb => {
+  // يحدّد/يلغي كل الصفوف المعروضة حالياً (بكل المجموعات)
+  document.querySelectorAll('#jomla-prod-groups input[type=checkbox][data-id]').forEach(cb => {
     cb.checked = checked;
     const id = Number(cb.dataset.id);
     if (checked) jomlaSelectedIds.add(id);
@@ -2805,7 +2934,6 @@ function toggleAllJomlaSelection(checked) {
 
 function clearJomlaSelection() {
   jomlaSelectedIds.clear();
-  document.getElementById('jomla-select-all').checked = false;
   renderJomlaProducts(jomlaProducts);
   updateJomlaBulkBar();
 }
@@ -2856,7 +2984,6 @@ async function bulkJomlaAction(action, categoryId) {
       toast(`✅ تم تحديث تصنيف ${ids.length} منتج`);
     }
     jomlaSelectedIds.clear();
-    document.getElementById('jomla-select-all').checked = false;
     updateJomlaBulkBar();
     loadJomlaProducts();
   } catch (err) { toast('❌ فشل تنفيذ الإجراء الجماعي'); }
@@ -2873,13 +3000,19 @@ async function loadJomlaCategories() {
 
 function renderJomlaCategories() {
   const tbody = document.getElementById('jomla-cat-table');
-  if (!jomlaCategories.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:#aaa">لا توجد تصنيفات</td></tr>'; return; }
-  tbody.innerHTML = jomlaCategories.map(c => `
-    <tr>
+  if (!jomlaCategories.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#aaa">لا توجد تصنيفات</td></tr>'; return; }
+  tbody.innerHTML = jomlaCategories.map((c, i) => `
+    <tr data-id="${c.id}" draggable="true"
+        ondragstart="jomlaCatDragStart(event,${c.id})" ondragover="jomlaDragOver(event)"
+        ondrop="jomlaCatDrop(event,${c.id})" ondragend="jomlaDragEnd(event)">
+      <td style="width:28px"><span style="cursor:grab;color:#bbb;font-size:16px;user-select:none">⠿</span></td>
+      <td>${c.image_media_id ? `<img class="prod-thumb" src="${API}/jomla/media/${c.image_media_id}">` : '—'}</td>
       <td>${escapeHtmlAdmin(c.name)}</td>
       <td style="color:var(--gray);font-size:13px">${escapeHtmlAdmin(c.slug)}</td>
       <td>${c.active ? '✅' : '—'}</td>
-      <td style="display:flex;gap:6px">
+      <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-gray btn-sm" title="أعلى" onclick="jomlaMoveCategory(${c.id},-1)">▲</button>
+        <button class="btn btn-gray btn-sm" title="أسفل" onclick="jomlaMoveCategory(${c.id},1)">▼</button>
         <button class="btn btn-gray btn-sm" onclick="openEditJomlaCategory(${c.id})">تعديل</button>
         <button class="btn btn-warn btn-sm" onclick="deleteJomlaCategory(${c.id})">حذف</button>
       </td>
@@ -2887,11 +3020,62 @@ function renderJomlaCategories() {
   `).join('');
 }
 
+// ─── ترتيب التصنيفات (سحب + أزرار) ───────────────────────────────────────
+let jomlaCatDragId = null;
+function jomlaCatDragStart(e, id) { jomlaCatDragId = id; e.dataTransfer.effectAllowed = 'move'; }
+function jomlaCatDrop(e, targetId) {
+  e.preventDefault();
+  if (jomlaCatDragId === null || jomlaCatDragId === targetId) return;
+  reorderJomlaCategories(jomlaCatDragId, targetId);
+  jomlaCatDragId = null;
+}
+function jomlaMoveCategory(id, dir) {
+  const idx = jomlaCategories.findIndex(c => c.id === id);
+  const swap = idx + dir;
+  if (idx < 0 || swap < 0 || swap >= jomlaCategories.length) return;
+  reorderJomlaCategories(id, jomlaCategories[swap].id);
+}
+async function reorderJomlaCategories(dragId, targetId) {
+  const from = jomlaCategories.findIndex(c => c.id === dragId);
+  const to = jomlaCategories.findIndex(c => c.id === targetId);
+  if (from < 0 || to < 0) return;
+  const [moved] = jomlaCategories.splice(from, 1);
+  jomlaCategories.splice(to, 0, moved);
+  renderJomlaCategories();
+  try {
+    await fetch(`${API}/admin/jomla/reorder-categories`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: jomlaCategories.map(c => c.id) }),
+    });
+    toast('✅ تم حفظ الترتيب');
+  } catch (e) { toast('❌ تعذر حفظ الترتيب'); }
+}
+
+// يضبط قسم الصورة بالمودال: يخفيه للتصنيف الجديد (لا id بعد)، ويعرض الحالية عند التعديل
+function setupJomlaCatImageRow(cat) {
+  const row = document.getElementById('jomla-cat-image-row');
+  const preview = document.getElementById('jomla-cat-image-preview');
+  const removeBtn = document.getElementById('jomla-cat-image-remove');
+  const fileInput = document.getElementById('jomla-cat-image-file');
+  fileInput.value = '';
+  if (!cat) { row.style.display = 'none'; return; }
+  row.style.display = 'block';
+  if (cat.image_media_id) {
+    preview.src = `${API}/jomla/media/${cat.image_media_id}?t=${Date.now()}`;
+    preview.style.display = 'block';
+    removeBtn.style.display = 'inline-block';
+  } else {
+    preview.style.display = 'none';
+    removeBtn.style.display = 'none';
+  }
+}
+
 function openAddJomlaCategory() {
   document.getElementById('jomla-category-modal-title').textContent = '➕ تصنيف جديد';
   document.getElementById('jomla-cat-id').value = '';
   document.getElementById('jomla-cat-name').value = '';
   document.getElementById('jomla-cat-desc').value = '';
+  setupJomlaCatImageRow(null);
   document.getElementById('modal-jomla-category').classList.add('open');
 }
 
@@ -2902,6 +3086,7 @@ function openEditJomlaCategory(id) {
   document.getElementById('jomla-cat-id').value = c.id;
   document.getElementById('jomla-cat-name').value = c.name;
   document.getElementById('jomla-cat-desc').value = c.description || '';
+  setupJomlaCatImageRow(c);
   document.getElementById('modal-jomla-category').classList.add('open');
 }
 
@@ -2911,19 +3096,42 @@ async function saveJomlaCategory() {
   const description = document.getElementById('jomla-cat-desc').value.trim();
   if (!name) { toast('اسم التصنيف مطلوب'); return; }
 
+  let catId = id;
   if (id) {
     await fetch(`${API}/admin/jomla/categories/${id}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, description }),
     });
   } else {
-    await fetch(`${API}/admin/jomla/categories`, {
+    const res = await fetch(`${API}/admin/jomla/categories`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, description }),
     });
+    const data = await res.json();
+    catId = data.id;
   }
+
+  // ارفع صورة التصنيف إن اختار المستخدم ملفاً
+  const fileInput = document.getElementById('jomla-cat-image-file');
+  if (catId && fileInput.files && fileInput.files.length) {
+    const fd = new FormData();
+    fd.append('image', fileInput.files[0]);
+    await fetch(`${API}/admin/jomla/categories/${catId}/image`, { method: 'POST', body: fd });
+  }
+
   toast('✅ تم الحفظ');
   closeModal('modal-jomla-category');
+  loadJomlaCategories();
+}
+
+async function removeJomlaCategoryImage() {
+  const id = document.getElementById('jomla-cat-id').value;
+  if (!id) return;
+  await fetch(`${API}/admin/jomla/categories/${id}/image`, { method: 'DELETE' });
+  const c = jomlaCategories.find(x => String(x.id) === String(id));
+  if (c) c.image_media_id = null;
+  setupJomlaCatImageRow(c);
+  toast('✅ تم حذف الصورة');
   loadJomlaCategories();
 }
 
@@ -2931,6 +3139,90 @@ async function deleteJomlaCategory(id) {
   await fetch(`${API}/admin/jomla/categories/${id}`, { method: 'DELETE' });
   toast('🗑️ تم الحذف');
   loadJomlaCategories();
+}
+
+// ── البنر ──────────────────────────────────────────────────────────
+let jomlaBanners = [];
+
+async function loadJomlaBanners() {
+  try {
+    const res = await fetch(`${API}/admin/jomla/banners`);
+    jomlaBanners = await res.json();
+    renderJomlaBanners();
+  } catch (err) { toast('❌ تعذر تحميل البنرات'); }
+}
+
+function renderJomlaBanners() {
+  const wrap = document.getElementById('jomla-banner-list');
+  if (!jomlaBanners.length) {
+    wrap.innerHTML = '<div style="color:#aaa;padding:16px">لا توجد صور بنر — يعرض المتجر صور المنتجات تلقائياً.</div>';
+    return;
+  }
+  wrap.innerHTML = jomlaBanners.map((b, i) => `
+    <div data-id="${b.id}" draggable="true"
+      ondragstart="jomlaBannerDragStart(event,${b.id})" ondragover="jomlaDragOver(event)"
+      ondrop="jomlaBannerDrop(event,${b.id})" ondragend="jomlaDragEnd(event)"
+      style="position:relative;width:150px;border:1.5px solid var(--border);border-radius:12px;overflow:hidden;background:#fff">
+      <img src="${API}/jomla/media/${b.id}" style="width:100%;height:90px;object-fit:cover;display:block"/>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;gap:4px">
+        <span style="cursor:grab;color:#bbb;font-size:15px;user-select:none">⠿</span>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-gray btn-sm" title="لليسار" onclick="jomlaMoveBanner(${b.id},-1)">▲</button>
+          <button class="btn btn-gray btn-sm" title="لليمين" onclick="jomlaMoveBanner(${b.id},1)">▼</button>
+          <button class="btn btn-warn btn-sm" onclick="deleteJomlaBanner(${b.id})">حذف</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function uploadJomlaBanners(input) {
+  if (!input.files || !input.files.length) return;
+  const fd = new FormData();
+  for (const f of input.files) fd.append('images', f);
+  try {
+    const res = await fetch(`${API}/admin/jomla/banners`, { method: 'POST', body: fd });
+    if (!res.ok) throw new Error();
+    toast('✅ تم رفع صور البنر');
+  } catch (e) { toast('❌ تعذر الرفع'); }
+  input.value = '';
+  loadJomlaBanners();
+}
+
+async function deleteJomlaBanner(id) {
+  await fetch(`${API}/admin/jomla/banners/${id}`, { method: 'DELETE' });
+  toast('🗑️ تم الحذف');
+  loadJomlaBanners();
+}
+
+let jomlaBannerDragId = null;
+function jomlaBannerDragStart(e, id) { jomlaBannerDragId = id; e.dataTransfer.effectAllowed = 'move'; }
+function jomlaBannerDrop(e, targetId) {
+  e.preventDefault();
+  if (jomlaBannerDragId === null || jomlaBannerDragId === targetId) return;
+  reorderJomlaBanners(jomlaBannerDragId, targetId);
+  jomlaBannerDragId = null;
+}
+function jomlaMoveBanner(id, dir) {
+  const idx = jomlaBanners.findIndex(b => b.id === id);
+  const swap = idx + dir;
+  if (idx < 0 || swap < 0 || swap >= jomlaBanners.length) return;
+  reorderJomlaBanners(id, jomlaBanners[swap].id);
+}
+async function reorderJomlaBanners(dragId, targetId) {
+  const from = jomlaBanners.findIndex(b => b.id === dragId);
+  const to = jomlaBanners.findIndex(b => b.id === targetId);
+  if (from < 0 || to < 0) return;
+  const [moved] = jomlaBanners.splice(from, 1);
+  jomlaBanners.splice(to, 0, moved);
+  renderJomlaBanners();
+  try {
+    await fetch(`${API}/admin/jomla/reorder-banners`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: jomlaBanners.map(b => b.id) }),
+    });
+    toast('✅ تم حفظ الترتيب');
+  } catch (e) { toast('❌ تعذر حفظ الترتيب'); }
 }
 
 // ── السكرابر ──────────────────────────────────────────────────────
@@ -3198,14 +3490,21 @@ function filterJomlaInventory() {
   renderJomlaInventory(jomlaInventory.filter(p => (p.name||'').includes(q)));
 }
 
+// شارة "غير متوفر" موحّدة للوحة التحكم (نص + نقطة حمراء، بدون إيموجي)
+function outOfStockBadge() {
+  return '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:#ffebee;color:#c62828"><span style="width:6px;height:6px;border-radius:50%;background:#c62828"></span>غير متوفر</span>';
+}
+
 function renderJomlaInventory(list) {
   const tbody = document.getElementById('jomla-inv-table');
   if (!list.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:#aaa">لا توجد منتجات</td></tr>'; return; }
-  tbody.innerHTML = list.map(p => `
+  tbody.innerHTML = list.map(p => {
+    const outOfStock = p.stock_quantity !== null && p.stock_quantity <= 0;
+    return `
     <tr>
       <td>${escapeHtmlAdmin(p.name)}</td>
       <td>${escapeHtmlAdmin(p.category_name || '—')}</td>
-      <td>${p.status === 'published' ? 'منشور' : 'مسودة'}</td>
+      <td>${p.status === 'published' ? 'منشور' : 'مسودة'}${outOfStock ? ' ' + outOfStockBadge() : ''}</td>
       <td>
         <input type="number" min="0" step="1" data-id="${p.id}"
           value="${p.stock_quantity === null ? '' : p.stock_quantity}"
@@ -3214,7 +3513,8 @@ function renderJomlaInventory(list) {
           onchange="saveJomlaStock(${p.id}, this)"/>
       </td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 }
 
 async function saveJomlaStock(id, inputEl) {
