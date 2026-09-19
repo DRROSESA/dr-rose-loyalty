@@ -2700,6 +2700,18 @@ function jomlaTableHead(withHandle) {
   </tr></thead>`;
 }
 
+// فرز مستقر: المنشور أولاً ثم المسودة، دون تغيير ترتيب sort_order داخل نفس الحالة
+function jomlaSortByStatus(arr) {
+  return arr
+    .map((p, i) => [p, i])
+    .sort((a, b) => {
+      const pa = a[0].status === 'published' ? 0 : 1;
+      const pb = b[0].status === 'published' ? 0 : 1;
+      return pa - pb || a[1] - b[1];
+    })
+    .map(x => x[0]);
+}
+
 // flat=true عند البحث (قائمة واحدة مسطّحة، بدون سحب). خلاف ذلك مجموعات حسب التصنيف.
 function renderJomlaProducts(list, flat) {
   const container = document.getElementById('jomla-prod-groups');
@@ -2714,12 +2726,13 @@ function renderJomlaProducts(list, flat) {
     return;
   }
   // تجميع حسب التصنيف بترتيب jomlaCategories، ثم "بدون تصنيف" أخيراً
+  // jomlaSortByStatus: المنشور أولاً ثم المسودة، مع الحفاظ على الترتيب اليدوي داخل كل حالة
   const groups = jomlaCategories.map(c => ({
     id: c.id, name: c.name,
-    items: list.filter(p => String(p.category_id) === String(c.id)),
+    items: jomlaSortByStatus(list.filter(p => String(p.category_id) === String(c.id))),
   }));
   const uncategorized = list.filter(p => !p.category_id);
-  if (uncategorized.length) groups.push({ id: 0, name: 'بدون تصنيف', items: uncategorized });
+  if (uncategorized.length) groups.push({ id: 0, name: 'بدون تصنيف', items: jomlaSortByStatus(uncategorized) });
 
   container.innerHTML = groups.map(g => {
     const collapsed = jomlaCollapsedCats.has(g.id);
@@ -2765,7 +2778,7 @@ function jomlaDrop(e, targetId) {
 function jomlaMoveProduct(id, dir) {
   const p = jomlaProducts.find(x => x.id === id);
   if (!p) return;
-  const siblings = jomlaProducts.filter(x => String(x.category_id) === String(p.category_id));
+  const siblings = jomlaSortByStatus(jomlaProducts.filter(x => String(x.category_id) === String(p.category_id)));
   const idx = siblings.findIndex(x => x.id === id);
   const swapIdx = idx + dir;
   if (swapIdx < 0 || swapIdx >= siblings.length) return;
@@ -2773,8 +2786,9 @@ function jomlaMoveProduct(id, dir) {
 }
 
 // يعيد ترتيب المنتجات داخل تصنيف واحد محلياً ثم يحفظ الترتيب على السيرفر
+// siblings مفروزة بنفس ترتيب العرض (المنشور أولاً) لتطابق فهارس السحب/الأزرار
 async function reorderJomlaWithin(categoryId, dragId, targetId) {
-  const siblings = jomlaProducts.filter(x => String(x.category_id) === String(categoryId));
+  const siblings = jomlaSortByStatus(jomlaProducts.filter(x => String(x.category_id) === String(categoryId)));
   const from = siblings.findIndex(x => x.id === dragId);
   const to = siblings.findIndex(x => x.id === targetId);
   if (from < 0 || to < 0) return;
